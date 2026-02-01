@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="hu">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Próbáljuk megengedőbbé tenni a referrer-t a helyi fájlokhoz -->
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <title>Retro TV 90s - Videa Player</title>
+    <style>
+        :root {
+            --tv-body: #1a1a1a;
+            --tv-bezel: #2a2a2a;
+            --screen-glow: rgba(200, 200, 255, 0.05);
+        }
+
+        body {
+            background-color: #070707;
+            background-image:
+                radial-gradient(circle at center, rgba(30, 30, 40, 0.4) 0%, transparent 70%),
+                url("data:image/svg+xml,%3Csvg width='150' height='150' viewBox='0 0 150 150' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            color: #ddd;
+        }
+
+        /* --- TV SET DESIGN --- */
+        .tv-set {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            max-width: 95vw;
+            max-height: 90vh;
+            background: var(--tv-bezel);
+            border-radius: 2px;
+            padding: 0;
+            box-shadow:
+                inset 0 0 40px rgba(0, 0, 0, 0.8),
+                0 0 100px rgba(0, 0, 0, 0.9),
+                0 20px 50px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            border: 4px solid #111;
+            transition: background 0.3s ease, box-shadow 0.3s ease, border 0.3s ease;
+            /* Optimized: Avoid 'all' to prevent resize jank */
+            transform-origin: center;
+            /* Static Background Glow per TV */
+            filter: drop-shadow(0 0 40px rgba(100, 150, 255, 0.1));
+        }
+
+        /* Pulsing Ambient Light behind TV */
+        .tv-set::after {
+            content: '';
+            position: absolute;
+            top: -20%;
+            left: -10%;
+            right: -10%;
+            bottom: -20%;
+            background: radial-gradient(circle at center, rgba(100, 150, 255, 0.08) 0%, transparent 70%);
+            z-index: -1;
+            pointer-events: none;
+            animation: ambient-pulse 6s infinite alternate;
+        }
+
+        @keyframes ambient-pulse {
+            0% {
+                opacity: 0.4;
+                transform: scale(0.95);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1.05);
+            }
+        }
+
+        /* Responsive scaling for mobile */
+        @media (max-width: 850px) {
+            .tv-set {
+                width: 95vw;
+                height: calc(95vw * 0.75);
+                /* Maintain 4:3 aspect ratio */
+            }
+
+            .controls-panel {
+                padding: 0 15px;
+            }
+
+            .brand-logo {
+                display: none;
+                /* Hide logo on small screens to save space */
+            }
+        }
+
+        /* Wood grain / Texture effect optional, kept simple for now */
+        .tv-set::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            bottom: 0;
+            border-radius: 2px;
+            border: 2px solid #444;
+            pointer-events: none;
+            opacity: 0.3;
+        }
+
+        .screen-container {
+            position: relative;
+            flex-grow: 1;
+            background: #000;
+            border-radius: 2px;
+            /* Sharp corners */
+            overflow: hidden;
+            box-shadow: inset 0 0 80px rgba(0, 0, 0, 1);
+            border: 20px solid var(--tv-bezel);
+            border-bottom: none;
+            /* Remove bottom bezel for more space */
+            z-index: 10;
+        }
+
+        /* --- CRT SCREEN EFFECTS --- */
+        .crt-screen {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: #111;
+            overflow: hidden;
+            /* Barrel distortion simulation */
+            mask-image: radial-gradient(circle at center, white 70%, black 100%);
+            -webkit-mask-image: radial-gradient(circle at center, white 70%, black 100%);
+        }
+
+        /* The actual video iframe */
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            opacity: 0;
+            transition: opacity 0.5s, transform 0.3s ease;
+            transform: scale(1.05);
+            /* Base scale for CRT curvature */
+            filter: contrast(1.1) brightness(1.1) saturate(1.2);
+            pointer-events: none;
+            position: relative;
+            will-change: transform, opacity;
+        }
+
+        /* Enhanced Zoom Mode - Very High Specificity */
+        .tv-set.zoom-active iframe#youtube-player {
+            transform: scale(1.4) !important;
+        }
+
+        .tv-set.zoom-active .crt-screen.crt-off iframe#youtube-player {
+            transform: scale(1.35) !important;
+        }
+
+        /* Scanlines - more organic */
+        .scanlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.1);
+            /* Uniform darkness */
+            background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+            background-size: 100% 3px;
+            pointer-events: none;
+            z-index: 20;
+            opacity: 0.8;
+        }
+
+        /* Phosphor Mask - Sub-pixel grid */
+        .phosphor-mask {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.03));
+            background-size: 3px 100%;
+            pointer-events: none;
+            z-index: 21;
+        }
+
+        /* Screen Glare & Vignette - ALSO BLOCKS INTERACTION */
+        .glass-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 60%),
+                radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at center, transparent 70%, rgba(0, 0, 0, 0.3) 100%);
+            box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.4);
+            pointer-events: auto;
+            /* ENABLES BLOCKING */
+            z-index: 25;
+            border-radius: 2px;
+        }
+
+        /* Brightness Flicker */
+        .flicker {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.015);
+            pointer-events: none;
+            z-index: 22;
+            animation: flicker-anim 0.1s infinite;
+        }
+
+        @keyframes flicker-anim {
+            0% {
+                opacity: 0.1;
+            }
+
+            50% {
+                opacity: 0.2;
+            }
+
+            100% {
+                opacity: 0.1;
+            }
+        }
+
+        #static-noise {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #111;
+            opacity: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 15;
+        }
+
+        /* --- CRT OFF STATE --- */
+        .crt-off .scanlines,
+        .crt-off .phosphor-mask,
+        .crt-off .flicker,
+        .crt-off .glass-overlay {
+            display: none;
+        }
+
+        .crt-off.crt-screen {
+            mask-image: none;
+            -webkit-mask-image: none;
+        }
+
+        .crt-off iframe {
+            transform: scale(1);
+            filter: none;
+        }
+
+        #static-noise::after {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            animation: noise-anim 0.1s steps(2) infinite;
+            opacity: 0.6;
+        }
+
+        /* Vertical sync bar effect during channel change */
+        #static-noise::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100px;
+            background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.4), transparent);
+            z-index: 16;
+            animation: sync-bar-anim 2s linear infinite;
+            opacity: 0;
+        }
+
+        .tv-set.changing-channel #static-noise::before {
+            opacity: 1;
+        }
+
+        @keyframes sync-bar-anim {
+            0% {
+                transform: translateY(-100%);
+            }
+
+            100% {
+                transform: translateY(600px);
+            }
+        }
+
+        @keyframes noise-anim {
+            0% {
+                transform: translate(0, 0);
+            }
+
+            10% {
+                transform: translate(-10px, -10px);
+            }
+
+            20% {
+                transform: translate(10px, 5px);
+            }
+
+            30% {
+                transform: translate(-5px, 15px);
+            }
+
+            40% {
+                transform: translate(15px, -5px);
+            }
+
+            50% {
+                transform: translate(-15px, 10px);
+            }
+
+            60% {
+                transform: translate(5px, -15px);
+            }
+
+            70% {
+                transform: translate(-10px, 5px);
+            }
+
+            80% {
+                transform: translate(15px, 15px);
+            }
+
+            90% {
+                transform: translate(-5px, -10px);
+            }
+
+            100% {
+                transform: translate(0, 0);
+            }
+        }
+
+        /* --- CONTROLS PANEL --- */
+        .controls-panel {
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            background: var(--tv-bezel);
+            border-radius: 0;
+            border-top: none;
+            z-index: 30;
+        }
+
+        @media (max-width: 600px) {
+            .controls-panel {
+                height: auto;
+                min-height: 70px;
+                padding: 10px;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 10px;
+            }
+
+            .buttons {
+                gap: 8px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .btn {
+                width: 40px;
+                height: 40px;
+                font-size: 8px;
+            }
+
+            .channel-display {
+                font-size: 16px;
+                width: auto;
+                min-width: 30px;
+                padding: 4px 8px;
+            }
+        }
+
+        .brand-logo {
+            font-weight: bold;
+            font-size: 24px;
+            color: #888;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            text-shadow: 1px 1px 0 #000;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: nowrap;
+        }
+
+        .btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            background: radial-gradient(circle at 30% 30%, #444, #111);
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.8), inset 1px 1px 2px rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-weight: bold;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+            box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Visual state for toggled ON buttons (pressed look) */
+        .btn.on {
+            background: radial-gradient(circle at 30% 30%, #222, #000);
+            color: #0f0;
+            /* Green indicator */
+            box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 1), 0 0 5px rgba(0, 255, 0, 0.2);
+        }
+
+        .btn-power {
+            background: radial-gradient(circle at 30% 30%, #d00, #500);
+            color: #fff;
+        }
+
+        .btn-power.on {
+            box-shadow: 0 0 10px #f00, 2px 2px 5px #000;
+            background: radial-gradient(circle at 30% 30%, #f00, #800);
+        }
+
+        .channel-display {
+            font-family: 'Digital-7', monospace;
+            /* Fallback if not avail */
+            background: #000;
+            color: #0f0;
+            padding: 5px 15px;
+            font-size: 20px;
+            border-radius: 4px;
+            border: 2px solid #333;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes turnOn {
+            0% {
+                transform: scale(1, 0.005) translateY(0);
+                filter: brightness(20);
+            }
+
+            50% {
+                transform: scale(1, 0.005);
+                filter: brightness(10);
+            }
+
+            51% {
+                transform: scale(1, 1);
+                filter: brightness(5);
+            }
+
+            100% {
+                transform: scale(1, 1);
+                filter: brightness(1);
+            }
+        }
+
+        @keyframes turnOff {
+            0% {
+                transform: scale(1, 1);
+                filter: brightness(1);
+            }
+
+            50% {
+                transform: scale(1, 0.005);
+                filter: brightness(5);
+            }
+
+            100% {
+                transform: scale(0, 0);
+                filter: brightness(0);
+            }
+        }
+
+        .screen-on {
+            animation: turnOn 0.4s ease-out forwards;
+            opacity: 1;
+        }
+
+        /* Fullscreen aggressive cropping to hide Videa bottom bar */
+        /* Only apply to Videa via class */
+        iframe.videa-crop {
+            height: 112% !important;
+            width: 102% !important;
+            left: -1% !important;
+            top: -1% !important;
+            transform: scale(1) !important;
+            position: absolute !important;
+        }
+
+
+        /* Mobile adjustment */
+        @media (max-width: 850px) {
+            .tv-set {
+                width: 95vw;
+                height: 70vw;
+                /* Keep roughly 4:3 Aspect + controls */
+                max-height: 80vh;
+            }
+
+            .controls-panel {
+                padding: 0 20px;
+            }
+
+            .brand-logo {
+                font-size: 16px;
+            }
+        }
+
+        /* Fullscreen Layout Overrides */
+        .tv-fullscreen-mode {
+            border: none !important;
+            box-shadow: none !important;
+            filter: none !important;
+            /* Performance: Remove drop-shadow in FS */
+            transition: none !important;
+            /* Performance: Disable transitions during FS resize */
+        }
+
+        .tv-fullscreen-mode .screen-container {
+            border: none !important;
+            /* Remove grey borders in FS */
+        }
+
+        .tv-fullscreen-mode .controls-panel {
+            position: absolute;
+            bottom: -80px;
+            /* Hidden below screen */
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            min-width: 300px;
+            height: 65px !important;
+            background: rgba(10, 10, 10, 0.85) !important;
+            /* Slightly more opaque background to rely less on blur */
+            padding: 0 25px !important;
+            border-radius: 12px 12px 0 0;
+            backdrop-filter: blur(8px);
+            /* Reduced blur for performance */
+            z-index: 200;
+            opacity: 0;
+            transition: all 0.4s ease;
+            pointer-events: auto;
+        }
+
+        /* Hover zone at the bottom of the screen */
+        .tv-fullscreen-mode .hover-zone {
+            display: none;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 80px;
+            z-index: 150;
+        }
+
+        .tv-fullscreen-mode .hover-zone {
+            display: block;
+        }
+
+        /* When hovering the zone OR the panel itself */
+        .tv-fullscreen-mode .hover-zone:hover+.controls-panel,
+        .tv-fullscreen-mode .controls-panel:hover,
+        .tv-fullscreen-mode.show-controls-briefly .controls-panel {
+            bottom: 0;
+            opacity: 1;
+        }
+
+        .tv-fullscreen-mode .buttons {
+            gap: 10px;
+        }
+
+        .tv-fullscreen-mode .btn {
+            width: 40px;
+            height: 40px;
+            font-size: 8px;
+        }
+
+        .tv-fullscreen-mode .brand-logo {
+            display: none;
+        }
+
+        .btn.on#scan-btn {
+            box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 1), 0 0 15px rgba(138, 43, 226, 0.6);
+            color: #d1b3ff;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="tv-set zoom-active">
+        <div class="screen-container">
+            <div class="crt-screen">
+                <div class="scanlines"></div>
+                <div class="phosphor-mask"></div>
+                <div class="flicker"></div>
+                <div class="glass-overlay"></div>
+                <!-- Static Noise Layer -->
+                <div id="static-noise"></div>
+                <!-- Video Player -->
+                <iframe id="youtube-player" src="" allow="autoplay; fullscreen"
+                    referrerpolicy="no-referrer-when-downgrade"></iframe>
+            </div>
+        </div>
+
+        <div class="hover-zone"></div>
+        <div class="controls-panel">
+            <div class="brand-logo">RETROVISION</div>
+            <div class="buttons">
+                <div class="channel-display" id="channel-num">--</div>
+                <button class="btn" onclick="prevChannel()" title="Előző Csatorna">▼</button>
+                <button class="btn" onclick="nextChannel()" title="Következő Csatorna">▲</button>
+                <button class="btn on" id="scan-btn" onclick="toggleZoom()"
+                    title="Képernyő kitöltése (Scan)">SCAN</button>
+                <button class="btn on" id="crt-btn" onclick="toggleCRT()" title="CRT Effekt ki/be">CRT</button>
+                <button class="btn" id="fs-btn" onclick="toggleFullscreen()" title="Teljes képernyő">FS</button>
+                <button class="btn btn-power" id="power-btn" onclick="togglePower()" title="Bekapcsolás">PWR</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script>
+        // --- ADÁS LISTA (ADATBÁZIS CSATORNÁNKÉNT) ---
+        const CHANNELS = [
+            {
+                number: "01",
+                playlist: [
+                    { title: "Andy, a vagány- Cikis vicc", id: "M1GJQQW3tCo", duration: 1275 },
+                    { title: "Kölykök a 402-es tanteremből- Einstein fia", id: "TtJPh_RwcPE", duration: 1275 },
+                    { title: "Kölykök a 402-es tanteremből- Közlekedési rendőrök", id: "X9TCl41qiLg", duration: 1275 },
+                    { title: "Nyekk, a macska- Szép remények", id: "fpxlwyp6f88", duration: 1162 }
+                ]
+            }
+        ];
+
+        // --- SZINKRONIZÁCIÓS BEÁLLÍTÁSOK ---
+        const REFERENCE_TIME = 1704067200;
+
+        let currentChannelIndex = 0; // Melyik csatornán állunk
+        let isTvOn = false;
+        let timer = null;
+
+        const player = document.getElementById('youtube-player');
+        const staticNoise = document.getElementById('static-noise');
+        const channelDisplay = document.getElementById('channel-num');
+        const powerBtn = document.getElementById('power-btn');
+
+        // YouTube API betöltése
+        (function loadYouTubeAPI() {
+            var tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            tag.async = true;
+            var firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        })();
+
+        function togglePower() {
+            if (isTvOn) {
+                turnOffTV();
+            } else {
+                turnOnTV();
+            }
+        }
+
+        function turnOnTV() {
+            isTvOn = true;
+            powerBtn.classList.add('on');
+            player.classList.remove('screen-off');
+            player.classList.add('screen-on');
+            syncToBroadcast();
+        }
+
+        function turnOffTV() {
+            isTvOn = false;
+            powerBtn.classList.remove('on');
+            channelDisplay.innerText = "--";
+            clearTimeout(timer);
+            player.src = "";
+            staticNoise.style.transition = 'none';
+            staticNoise.style.opacity = '0';
+            player.classList.remove('screen-on');
+            player.style.opacity = '0';
+        }
+
+        function syncToBroadcast() {
+            if (!isTvOn) return;
+
+            const currentChannel = CHANNELS[currentChannelIndex];
+            const totalChannelDuration = currentChannel.playlist.reduce((sum, vid) => sum + vid.duration, 0);
+
+            const now = Math.floor(Date.now() / 1000);
+            const elapsed = now - REFERENCE_TIME;
+            let currentCycleTime = elapsed % totalChannelDuration;
+
+            let accumulatedTime = 0;
+            for (let i = 0; i < currentChannel.playlist.length; i++) {
+                const vid = currentChannel.playlist[i];
+                if (currentCycleTime >= accumulatedTime && currentCycleTime < accumulatedTime + vid.duration) {
+                    const startTime = Math.floor(currentCycleTime - accumulatedTime);
+                    channelDisplay.innerText = currentChannel.number;
+                    playChannel(vid, startTime);
+                    return;
+                }
+                accumulatedTime += vid.duration;
+            }
+        }
+
+        function nextChannel() {
+            if (!isTvOn) return;
+            currentChannelIndex = (currentChannelIndex + 1) % CHANNELS.length;
+            syncToBroadcast();
+        }
+
+        function prevChannel() {
+            if (!isTvOn) return;
+            currentChannelIndex = (currentChannelIndex - 1 + CHANNELS.length) % CHANNELS.length;
+            syncToBroadcast();
+        }
+
+        function playChannel(video, startTime = 0) {
+            const tvSet = document.querySelector('.tv-set');
+            tvSet.classList.add('changing-channel');
+            staticNoise.style.transition = 'none';
+            staticNoise.style.opacity = '1';
+            player.style.opacity = '0';
+
+            clearTimeout(timer);
+
+            setTimeout(() => {
+                if (!isTvOn) return;
+
+                const host = window.location.protocol === 'file:' ? 'http://localhost' : window.location.origin;
+                const youtubeUrl = `https://www.youtube.com/embed/${video.id}?autoplay=1&start=${startTime}&controls=0&modestbranding=1&rel=0&iv_load_policy=3&disablekb=1&enablejsapi=1&vq=medium&playsinline=1&origin=${encodeURIComponent(host)}`;
+                player.src = youtubeUrl;
+
+                player.onload = () => {
+                    if (!isTvOn) return;
+                    setTimeout(() => {
+                        tvSet.classList.remove('changing-channel');
+                        staticNoise.style.transition = 'opacity 0.6s';
+                        staticNoise.style.opacity = '0.05';
+                        player.style.opacity = '1';
+                    }, 300);
+                };
+
+                // Fallback
+                setTimeout(() => {
+                    if (!isTvOn || player.style.opacity === '1') return;
+                    tvSet.classList.remove('changing-channel');
+                    staticNoise.style.transition = 'opacity 0.6s';
+                    staticNoise.style.opacity = '0.05';
+                    player.style.opacity = '1';
+                }, 1200);
+
+                // Következő videó az ezen a csatornán futó ciklusban
+                const remainingTime = (video.duration - startTime) * 1000;
+                timer = setTimeout(() => {
+                    syncToBroadcast();
+                }, Math.max(0, remainingTime - 1000));
+            }, 800);
+        }
+
+        function toggleFullscreen() {
+            const tvSet = document.querySelector('.tv-set');
+            if (!document.fullscreenElement) {
+                if (tvSet.requestFullscreen) {
+                    tvSet.requestFullscreen();
+                } else if (tvSet.webkitRequestFullscreen) {
+                    tvSet.webkitRequestFullscreen();
+                } else if (tvSet.msRequestFullscreen) {
+                    tvSet.msRequestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        function toggleCRT() {
+            const screen = document.querySelector('.crt-screen');
+            const btn = document.getElementById('crt-btn');
+            screen.classList.toggle('crt-off');
+            btn.classList.toggle('on');
+        }
+
+        function toggleZoom() {
+            const tvSet = document.querySelector('.tv-set');
+            const btn = document.getElementById('scan-btn');
+            if (tvSet) {
+                const isActive = tvSet.classList.toggle('zoom-active');
+                if (btn) btn.classList.toggle('on', isActive);
+            }
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            const tvSet = document.querySelector('.tv-set');
+
+            if (document.fullscreenElement) {
+                tvSet.style.width = '100vw';
+                tvSet.style.height = '100vh';
+                tvSet.style.maxWidth = 'none';
+                tvSet.style.maxHeight = 'none';
+                tvSet.style.borderRadius = '0';
+                tvSet.style.padding = '0';
+                tvSet.classList.add('tv-fullscreen-mode');
+
+                // Show controls briefly so the user knows where they are
+                tvSet.classList.add('show-controls-briefly');
+                setTimeout(() => {
+                    tvSet.classList.remove('show-controls-briefly');
+                }, 3000);
+            } else {
+                tvSet.style.width = '';
+                tvSet.style.height = '';
+                tvSet.style.maxWidth = '';
+                tvSet.style.maxHeight = '';
+                tvSet.style.borderRadius = '';
+                tvSet.style.padding = '';
+                tvSet.classList.remove('tv-fullscreen-mode');
+            }
+        });
+    </script>
+</body>
+
+</html>
