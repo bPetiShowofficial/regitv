@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="strict-origin-when-cross-origin">
-    <title>Retro TV 90s - Videa Player</title>
+    <title>Magyar Retro TV</title>
     <style>
         :root {
             --tv-body: #1a1a1a;
@@ -524,7 +524,7 @@
         </div>
         <div class="hover-zone"></div>
         <div class="controls-panel">
-            <div class="brand-logo">RETROVISION</div>
+            <div class="brand-logo">RETRO TV</div>
             <div class="buttons">
                 <div class="channel-display" id="channel-num">--</div>
                 <button class="btn" onclick="prevChannel()" title="Előző Csatorna">▼</button>
@@ -767,11 +767,11 @@
                 Object.assign(tvSet.style, { width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: '0', padding: '0' });
                 tvSet.classList.add('tv-fullscreen-mode', 'show-controls'); // Azonnal mutassuk
 
-                // 2 másodperc után elrejtjük, ha nincs interakció
+                // 3 másodperc után elrejtjük, ha nincs interakció
                 clearTimeout(window.controlsTimer);
                 window.controlsTimer = setTimeout(() => {
                     tvSet.classList.remove('show-controls');
-                }, 2000);
+                }, 3000);
             } else {
                 tvSet.classList.remove('manual-fullscreen');
                 tvSet.classList.remove('show-controls');
@@ -804,12 +804,12 @@
             if (tvSet.classList.contains('tv-fullscreen-mode')) {
                 tvSet.classList.toggle('show-controls');
 
-                // Automatikus elrejtés 2 másodperc után, ha nem nyúlnak hozzá
+                // Automatikus elrejtés 3 másodperc után, ha nem nyúlnak hozzá
                 clearTimeout(window.controlsTimer);
                 if (tvSet.classList.contains('show-controls')) {
                     window.controlsTimer = setTimeout(() => {
                         tvSet.classList.remove('show-controls');
-                    }, 2000);
+                    }, 3000);
                 }
             }
         });
@@ -817,3 +817,4 @@
 </body>
 
 </html>
+
