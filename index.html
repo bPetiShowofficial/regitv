@@ -592,7 +592,7 @@
                 <div class="flicker"></div>
                 <div class="glass-overlay"></div>
                 <div id="static-noise"></div>
-                <iframe id="youtube-player" src="" allow="autoplay; fullscreen"
+                <iframe id="youtube-player" allow="autoplay; fullscreen"
                     referrerpolicy="no-referrer-when-downgrade"></iframe>
             </div>
         </div>
@@ -751,6 +751,11 @@
         }
 
         function playChannel(video, startTime = 0) {
+            if (!ytPlayer || typeof ytPlayer.loadVideoById !== 'function') {
+                setTimeout(() => playChannel(video, startTime), 300);
+                return;
+            }
+
             const tvSet = document.querySelector('.tv-set');
             tvSet.classList.add('changing-channel');
             staticNoise.style.transition = 'none';
@@ -762,9 +767,13 @@
             setTimeout(() => {
                 if (!isTvOn) return;
 
-                const host = window.location.protocol === 'file:' ? 'http://localhost' : window.location.origin;
-                const youtubeUrl = `https://www.youtube.com/embed/${video.id}?autoplay=1&mute=1&start=${startTime}&controls=0&modestbranding=1&rel=0&iv_load_policy=3&disablekb=1&enablejsapi=1&vq=medium&playsinline=1&origin=${encodeURIComponent(host)}`;
-                playerEl.src = youtubeUrl;
+                ytPlayer.loadVideoById({
+                    videoId: video.id,
+                    startSeconds: startTime,
+                    suggestedQuality: 'medium'
+                });
+
+                if (isMuted) ytPlayer.mute(); else ytPlayer.unMute();
 
                 const remainingTime = (video.duration - startTime) * 1000;
                 timer = setTimeout(() => {
