@@ -105,7 +105,6 @@
             left: 0;
             right: 0;
             bottom: 0;
-            bottom: 0;
             border-radius: 2px;
             border: 2px solid #444;
             pointer-events: none;
@@ -456,7 +455,6 @@
 
         .channel-display {
             font-family: 'Digital-7', monospace;
-            /* Fallback if not avail */
             background: #000;
             color: #0f0;
             padding: 5px 15px;
@@ -512,73 +510,36 @@
             opacity: 1;
         }
 
-        /* Fullscreen aggressive cropping to hide Videa bottom bar */
-        /* Only apply to Videa via class */
-        iframe.videa-crop {
-            height: 112% !important;
-            width: 102% !important;
-            left: -1% !important;
-            top: -1% !important;
-            transform: scale(1) !important;
-            position: absolute !important;
-        }
-
-
-        /* Mobile adjustment */
-        @media (max-width: 850px) {
-            .tv-set {
-                width: 95vw;
-                height: 70vw;
-                /* Keep roughly 4:3 Aspect + controls */
-                max-height: 80vh;
-            }
-
-            .controls-panel {
-                padding: 0 20px;
-            }
-
-            .brand-logo {
-                font-size: 16px;
-            }
-        }
-
         /* Fullscreen Layout Overrides */
         .tv-fullscreen-mode {
             border: none !important;
             box-shadow: none !important;
             filter: none !important;
-            /* Performance: Remove drop-shadow in FS */
             transition: none !important;
-            /* Performance: Disable transitions during FS resize */
         }
 
         .tv-fullscreen-mode .screen-container {
             border: none !important;
-            /* Remove grey borders in FS */
         }
 
         .tv-fullscreen-mode .controls-panel {
             position: absolute;
             bottom: -80px;
-            /* Hidden below screen */
             left: 50%;
             transform: translateX(-50%);
             width: auto;
             min-width: 300px;
             height: 65px !important;
             background: rgba(10, 10, 10, 0.85) !important;
-            /* Slightly more opaque background to rely less on blur */
             padding: 0 25px !important;
             border-radius: 12px 12px 0 0;
             backdrop-filter: blur(8px);
-            /* Reduced blur for performance */
             z-index: 200;
             opacity: 0;
             transition: all 0.4s ease;
             pointer-events: auto;
         }
 
-        /* Hover zone at the bottom of the screen */
         .tv-fullscreen-mode .hover-zone {
             display: none;
             position: absolute;
@@ -593,7 +554,6 @@
             display: block;
         }
 
-        /* When hovering the zone OR the panel itself */
         .tv-fullscreen-mode .hover-zone:hover+.controls-panel,
         .tv-fullscreen-mode .controls-panel:hover,
         .tv-fullscreen-mode.show-controls-briefly .controls-panel {
@@ -619,19 +579,6 @@
             box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 1), 0 0 15px rgba(138, 43, 226, 0.6);
             color: #d1b3ff;
         }
-
-        /* iOS "Fake" Fullscreen Fallback */
-        .ios-fs-override {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100vw !important;
-            height: 100vh !important;
-            margin: 0 !important;
-            z-index: 99999 !important;
-            max-width: none !important;
-            max-height: none !important;
-        }
     </style>
 </head>
 
@@ -644,9 +591,7 @@
                 <div class="phosphor-mask"></div>
                 <div class="flicker"></div>
                 <div class="glass-overlay"></div>
-                <!-- Static Noise Layer -->
                 <div id="static-noise"></div>
-                <!-- Video Player -->
                 <iframe id="youtube-player" src="" allow="autoplay; fullscreen"
                     referrerpolicy="no-referrer-when-downgrade"></iframe>
             </div>
@@ -662,16 +607,14 @@
                 <button class="btn on" id="scan-btn" onclick="toggleZoom()"
                     title="Képernyő kitöltése (Scan)">SCAN</button>
                 <button class="btn on" id="crt-btn" onclick="toggleCRT()" title="CRT Effekt ki/be">CRT</button>
+                <button class="btn" id="vol-btn" onclick="toggleMute()" title="Némítás ki/be">VOL</button>
                 <button class="btn" id="fs-btn" onclick="toggleFullscreen()" title="Teljes képernyő">FS</button>
                 <button class="btn btn-power" id="power-btn" onclick="togglePower()" title="Bekapcsolás">PWR</button>
             </div>
         </div>
     </div>
 
-
-
     <script>
-        // --- ADÁS LISTA (ADATBÁZIS CSATORNÁNKÉNT) ---
         const CHANNELS = [
             {
                 number: "01",
@@ -684,19 +627,43 @@
             }
         ];
 
-        // --- SZINKRONIZÁCIÓS BEÁLLÍTÁSOK ---
         const REFERENCE_TIME = 1704067200;
 
-        let currentChannelIndex = 0; // Melyik csatornán állunk
+        let ytPlayer = null;
+        let currentChannelIndex = 0;
         let isTvOn = false;
+        let isMuted = true;
         let timer = null;
 
-        const player = document.getElementById('youtube-player');
+        const playerEl = document.getElementById('youtube-player');
         const staticNoise = document.getElementById('static-noise');
         const channelDisplay = document.getElementById('channel-num');
         const powerBtn = document.getElementById('power-btn');
+        const volBtn = document.getElementById('vol-btn');
 
-        // YouTube API betöltése
+        function onYouTubeIframeAPIReady() {
+            ytPlayer = new YT.Player('youtube-player', {
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            console.log("Player Ready");
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data == YT.PlayerState.PLAYING) {
+                const tvSet = document.querySelector('.tv-set');
+                tvSet.classList.remove('changing-channel');
+                staticNoise.style.transition = 'opacity 0.6s';
+                staticNoise.style.opacity = '0.05';
+                playerEl.style.opacity = '1';
+            }
+        }
+
         (function loadYouTubeAPI() {
             var tag = document.createElement('script');
             tag.src = "https://www.youtube.com/iframe_api";
@@ -704,6 +671,19 @@
             var firstScriptTag = document.getElementsByTagName('script')[0];
             firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
         })();
+
+        function toggleMute() {
+            if (!ytPlayer || !isTvOn) return;
+            if (isMuted) {
+                ytPlayer.unMute();
+                isMuted = false;
+                volBtn.classList.add('on');
+            } else {
+                ytPlayer.mute();
+                isMuted = true;
+                volBtn.classList.remove('on');
+            }
+        }
 
         function togglePower() {
             if (isTvOn) {
@@ -716,21 +696,23 @@
         function turnOnTV() {
             isTvOn = true;
             powerBtn.classList.add('on');
-            player.classList.remove('screen-off');
-            player.classList.add('screen-on');
+            playerEl.classList.add('screen-on');
             syncToBroadcast();
         }
 
         function turnOffTV() {
             isTvOn = false;
             powerBtn.classList.remove('on');
+            volBtn.classList.remove('on');
+            isMuted = true;
             channelDisplay.innerText = "--";
             clearTimeout(timer);
-            player.src = "";
+            if (ytPlayer && ytPlayer.stopVideo) ytPlayer.stopVideo();
+            playerEl.src = "";
             staticNoise.style.transition = 'none';
             staticNoise.style.opacity = '0';
-            player.classList.remove('screen-on');
-            player.style.opacity = '0';
+            playerEl.classList.remove('screen-on');
+            playerEl.style.opacity = '0';
         }
 
         function syncToBroadcast() {
@@ -773,7 +755,7 @@
             tvSet.classList.add('changing-channel');
             staticNoise.style.transition = 'none';
             staticNoise.style.opacity = '1';
-            player.style.opacity = '0';
+            playerEl.style.opacity = '0';
 
             clearTimeout(timer);
 
@@ -782,28 +764,8 @@
 
                 const host = window.location.protocol === 'file:' ? 'http://localhost' : window.location.origin;
                 const youtubeUrl = `https://www.youtube.com/embed/${video.id}?autoplay=1&mute=1&start=${startTime}&controls=0&modestbranding=1&rel=0&iv_load_policy=3&disablekb=1&enablejsapi=1&vq=medium&playsinline=1&origin=${encodeURIComponent(host)}`;
-                player.src = youtubeUrl;
+                playerEl.src = youtubeUrl;
 
-                player.onload = () => {
-                    if (!isTvOn) return;
-                    setTimeout(() => {
-                        tvSet.classList.remove('changing-channel');
-                        staticNoise.style.transition = 'opacity 0.6s';
-                        staticNoise.style.opacity = '0.05';
-                        player.style.opacity = '1';
-                    }, 300);
-                };
-
-                // Fallback
-                setTimeout(() => {
-                    if (!isTvOn || player.style.opacity === '1') return;
-                    tvSet.classList.remove('changing-channel');
-                    staticNoise.style.transition = 'opacity 0.6s';
-                    staticNoise.style.opacity = '0.05';
-                    player.style.opacity = '1';
-                }, 1200);
-
-                // Következő videó az ezen a csatornán futó ciklusban
                 const remainingTime = (video.duration - startTime) * 1000;
                 timer = setTimeout(() => {
                     syncToBroadcast();
@@ -813,25 +775,17 @@
 
         function toggleFullscreen() {
             const tvSet = document.querySelector('.tv-set');
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
-            if (isIOS) {
-                const isFakeFS = tvSet.classList.toggle('ios-fs-override');
-                handleFullscreenChange(isFakeFS);
-                return;
-            }
-
-            if (!document.fullscreenElement) {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
                 if (tvSet.requestFullscreen) {
                     tvSet.requestFullscreen();
                 } else if (tvSet.webkitRequestFullscreen) {
                     tvSet.webkitRequestFullscreen();
-                } else if (tvSet.msRequestFullscreen) {
-                    tvSet.msRequestFullscreen();
                 }
             } else {
                 if (document.exitFullscreen) {
                     document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
                 }
             }
         }
