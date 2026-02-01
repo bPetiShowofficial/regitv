@@ -532,9 +532,9 @@
                 <button class="btn on" id="scan-btn" onclick="toggleZoom()"
                     title="Képernyő kitöltése (Scan)">SCAN</button>
                 <button class="btn on" id="crt-btn" onclick="toggleCRT()" title="CRT Effekt ki/be">CRT</button>
-                <button class="btn" id="vol-btn" onclick="toggleMute()" title="Némítás ki/be">VOL</button>
-                <button class="btn" id="fs-btn" onclick="toggleFullscreen()" title="Teljes képernyő">FS</button>
-                <button class="btn btn-power" id="power-btn" onclick="togglePower()" title="Bekapcsolás">PWR</button>
+                <button class="btn" id="vol-btn" onclick="toggleMute()" title="Némítás ki/be">HANG</button>
+                <button class="btn" id="fs-btn" onclick="toggleFullscreen()" title="Teljes képernyő">TELJ.K</button>
+                <button class="btn btn-power" id="power-btn" onclick="togglePower()" title="Bekapcsolás">BE/KI</button>
             </div>
         </div>
     </div>
@@ -767,11 +767,11 @@
                 Object.assign(tvSet.style, { width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: '0', padding: '0' });
                 tvSet.classList.add('tv-fullscreen-mode', 'show-controls'); // Azonnal mutassuk
 
-                // 3 másodperc után elrejtjük, ha nincs interakció
+                // 2,5 másodperc után elrejtjük, ha nincs interakció
                 clearTimeout(window.controlsTimer);
                 window.controlsTimer = setTimeout(() => {
                     tvSet.classList.remove('show-controls');
-                }, 3000);
+                }, 2500);
             } else {
                 tvSet.classList.remove('manual-fullscreen');
                 tvSet.classList.remove('show-controls');
@@ -804,12 +804,12 @@
             if (tvSet.classList.contains('tv-fullscreen-mode')) {
                 tvSet.classList.toggle('show-controls');
 
-                // Automatikus elrejtés 3 másodperc után, ha nem nyúlnak hozzá
+                // Automatikus elrejtés 2,5 másodperc után, ha nem nyúlnak hozzá
                 clearTimeout(window.controlsTimer);
                 if (tvSet.classList.contains('show-controls')) {
                     window.controlsTimer = setTimeout(() => {
                         tvSet.classList.remove('show-controls');
-                    }, 3000);
+                    }, 2500);
                 }
             }
         });
@@ -817,4 +817,5 @@
 </body>
 
 </html>
+
 
