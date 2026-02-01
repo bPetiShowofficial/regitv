@@ -80,7 +80,31 @@
             }
 
             .controls-panel {
-                padding: 0 15px;
+                padding: 10px !important;
+                height: auto !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                align-items: center !important;
+                gap: 15px !important;
+            }
+
+            .buttons {
+                gap: 8px;
+                flex-wrap: wrap;
+                justify-content: center !important;
+                width: 100%;
+            }
+
+            .btn {
+                width: 44px;
+                height: 44px;
+                font-size: 8px;
+            }
+
+            .channel-display {
+                font-size: 18px;
+                padding: 5px 12px;
+                margin-bottom: 5px;
             }
 
             .brand-logo {
@@ -645,10 +669,33 @@
 
         function toggleFullscreen() {
             const tvSet = document.querySelector('.tv-set');
-            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                tvSet.requestFullscreen ? tvSet.requestFullscreen() : tvSet.webkitRequestFullscreen();
+
+            // Check current status
+            const isFS = document.fullscreenElement ||
+                document.webkitFullscreenElement ||
+                document.mozFullScreenElement ||
+                document.msFullscreenElement;
+
+            if (!isFS) {
+                if (tvSet.requestFullscreen) {
+                    tvSet.requestFullscreen();
+                } else if (tvSet.webkitRequestFullscreen) {
+                    tvSet.webkitRequestFullscreen();
+                } else if (tvSet.mozRequestFullScreen) {
+                    tvSet.mozRequestFullScreen();
+                } else if (tvSet.msRequestFullscreen) {
+                    tvSet.msRequestFullscreen();
+                }
             } else {
-                document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen();
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
             }
         }
 
