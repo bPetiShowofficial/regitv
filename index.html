@@ -483,6 +483,10 @@
             opacity: 1;
         }
 
+        .tv-fullscreen-mode .brand-logo {
+            display: none !important;
+        }
+
         /* Hover zone kivezetése, helyette kattintás lesz */
         .tv-fullscreen-mode .hover-zone {
             display: none !important;
@@ -747,11 +751,11 @@
                 Object.assign(tvSet.style, { width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: '0', padding: '0' });
                 tvSet.classList.add('tv-fullscreen-mode', 'show-controls'); // Azonnal mutassuk
 
-                // 3 másodperc után elrejtjük, ha nincs interakció
+                // 2 másodperc után elrejtjük, ha nincs interakció
                 clearTimeout(window.controlsTimer);
                 window.controlsTimer = setTimeout(() => {
                     tvSet.classList.remove('show-controls');
-                }, 3000);
+                }, 2000);
             } else {
                 tvSet.classList.remove('manual-fullscreen');
                 tvSet.classList.remove('show-controls');
@@ -784,12 +788,12 @@
             if (tvSet.classList.contains('tv-fullscreen-mode')) {
                 tvSet.classList.toggle('show-controls');
 
-                // Automatikus elrejtés 5 másodperc után, ha nem nyúlnak hozzá
+                // Automatikus elrejtés 2 másodperc után, ha nem nyúlnak hozzá
                 clearTimeout(window.controlsTimer);
                 if (tvSet.classList.contains('show-controls')) {
                     window.controlsTimer = setTimeout(() => {
                         tvSet.classList.remove('show-controls');
-                    }, 5000);
+                    }, 2000);
                 }
             }
         });
