@@ -688,17 +688,19 @@
                 return;
             }
             const tvSet = document.querySelector('.tv-set');
-            tvSet.classList.add('changing-channel');
-            staticNoise.style.transition = 'none';
-            staticNoise.style.opacity = '1';
-            ytPlayer.getIframe().style.opacity = '0';
+            const playerIframe = ytPlayer.getIframe();
+
+            // Autentikus "fekete villanás" átmenet statikus zaj helyett
+            playerIframe.style.transition = 'opacity 0.15s';
+            playerIframe.style.opacity = '0';
+
             clearTimeout(timer);
             setTimeout(() => {
                 if (!isTvOn) return;
                 ytPlayer.loadVideoById({ videoId: video.id, startSeconds: startTime, suggestedQuality: 'medium' });
                 isMuted ? ytPlayer.mute() : ytPlayer.unMute();
                 timer = setTimeout(syncToBroadcast, Math.max(0, (video.duration - startTime) * 1000 - 1000));
-            }, 800);
+            }, 400); // Rövidebb várakozás, nincs zaj
         }
 
         function nextChannel() { if (isTvOn) { currentChannelIndex = (currentChannelIndex + 1) % CHANNELS.length; syncToBroadcast(); } }
