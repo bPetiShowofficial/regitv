@@ -624,6 +624,11 @@
         function turnOnTV() {
             isTvOn = true;
             powerBtn.classList.add('on');
+
+            // Automatikus hang bekapcsolás (mivel a PWR gombnyomás user interaction)
+            isMuted = false;
+            volBtn.classList.add('on');
+
             syncToBroadcast();
         }
 
