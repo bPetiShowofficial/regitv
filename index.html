@@ -487,6 +487,17 @@
             bottom: 0;
             opacity: 1;
         }
+
+        /* Manuális fallback mód mobilos Safarihoz */
+        .tv-set.manual-fullscreen {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 9999 !important;
+            margin: 0 !important;
+        }
     </style>
 </head>
 
@@ -536,6 +547,7 @@
         const REFERENCE_TIME = 1704067200;
         let ytPlayer = null;
         let isPlayerReady = false;
+        let isManualFS = false;
         let currentChannelIndex = 0;
         let isTvOn = false;
         let isMuted = true;
@@ -670,23 +682,12 @@
         function toggleFullscreen() {
             const tvSet = document.querySelector('.tv-set');
 
-            // Check current status
-            const isFS = document.fullscreenElement ||
-                document.webkitFullscreenElement ||
-                document.mozFullScreenElement ||
-                document.msFullscreenElement;
+            // Megnézzük a natív állapotot
+            const isNativeFS = !!(document.fullscreenElement || document.webkitFullscreenElement ||
+                document.mozFullScreenElement || document.msFullscreenElement);
 
-            if (!isFS) {
-                if (tvSet.requestFullscreen) {
-                    tvSet.requestFullscreen();
-                } else if (tvSet.webkitRequestFullscreen) {
-                    tvSet.webkitRequestFullscreen();
-                } else if (tvSet.mozRequestFullScreen) {
-                    tvSet.mozRequestFullScreen();
-                } else if (tvSet.msRequestFullscreen) {
-                    tvSet.msRequestFullscreen();
-                }
-            } else {
+            if (isNativeFS || isManualFS) {
+                // Kilépés
                 if (document.exitFullscreen) {
                     document.exitFullscreen();
                 } else if (document.webkitExitFullscreen) {
@@ -695,6 +696,35 @@
                     document.mozCancelFullScreen();
                 } else if (document.msExitFullscreen) {
                     document.msExitFullscreen();
+                }
+
+                if (isManualFS) {
+                    isManualFS = false;
+                    handleFullscreenChange(false);
+                }
+            } else {
+                // Belépés próbája
+                let requestPromise = null;
+                if (tvSet.requestFullscreen) {
+                    requestPromise = tvSet.requestFullscreen();
+                } else if (tvSet.webkitRequestFullscreen) {
+                    requestPromise = tvSet.webkitRequestFullscreen();
+                } else if (tvSet.mozRequestFullScreen) {
+                    requestPromise = tvSet.mozRequestFullScreen();
+                } else if (tvSet.msRequestFullscreen) {
+                    requestPromise = tvSet.msRequestFullscreen();
+                }
+
+                if (requestPromise) {
+                    requestPromise.catch(() => {
+                        // Ha a böngésző elutasítja a natívat (pl. nem biztonságos környezet)
+                        isManualFS = true;
+                        handleFullscreenChange(true);
+                    });
+                } else {
+                    // Ha nincs natív támogatás (pl. iPhone Safari)
+                    isManualFS = true;
+                    handleFullscreenChange(true);
                 }
             }
         }
@@ -713,17 +743,34 @@
         function handleFullscreenChange(isFS) {
             const tvSet = document.querySelector('.tv-set');
             if (isFS) {
+                tvSet.classList.add('manual-fullscreen');
                 Object.assign(tvSet.style, { width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: '0', padding: '0' });
                 tvSet.classList.add('tv-fullscreen-mode', 'show-controls-briefly');
                 setTimeout(() => tvSet.classList.remove('show-controls-briefly'), 3000);
             } else {
+                tvSet.classList.remove('manual-fullscreen');
                 Object.assign(tvSet.style, { width: '', height: '', maxWidth: '', maxHeight: '', borderRadius: '', padding: '' });
                 tvSet.classList.remove('tv-fullscreen-mode');
             }
         }
 
-        document.addEventListener('fullscreenchange', () => handleFullscreenChange(!!document.fullscreenElement));
-        document.addEventListener('webkitfullscreenchange', () => handleFullscreenChange(!!document.webkitFullscreenElement));
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                isManualFS = false;
+                handleFullscreenChange(false);
+            } else {
+                handleFullscreenChange(true);
+            }
+        });
+
+        document.addEventListener('webkitfullscreenchange', () => {
+            if (!document.webkitFullscreenElement) {
+                isManualFS = false;
+                handleFullscreenChange(false);
+            } else {
+                handleFullscreenChange(true);
+            }
+        });
     </script>
 </body>
 
