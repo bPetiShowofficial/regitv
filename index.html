@@ -756,11 +756,11 @@
                 Object.assign(tvSet.style, { width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: '0', padding: '0' });
                 tvSet.classList.add('tv-fullscreen-mode', 'show-controls'); // Azonnal mutassuk
 
-                // 2 másodperc után elrejtjük, ha nincs interakció
+                // 3 másodperc után elrejtjük, ha nincs interakció
                 clearTimeout(window.controlsTimer);
                 window.controlsTimer = setTimeout(() => {
                     tvSet.classList.remove('show-controls');
-                }, 2000);
+                }, 3000);
             } else {
                 tvSet.classList.remove('manual-fullscreen');
                 tvSet.classList.remove('show-controls');
@@ -806,3 +806,4 @@
 </body>
 
 </html>
+
