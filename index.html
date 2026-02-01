@@ -548,6 +548,8 @@
                     { title: "Jack, a Kalóz (1. rész) - A három boszorkány legendás kincse", id: "Nnh98VdFrjU", duration: 1218 },
                     { title: "Denis a Komisz 1 rész", id: "5fE9xC8tM3E", duration: 1284 },
                     { title: "Kölykök a 402-es tanteremből- Közlekedési rendőrök", id: "X9TCl41qiLg", duration: 1275 },
+                    { title: "Oggy és a svábbogarak- Strike!", id: "gwTW7CCgFH0", duration: 384 },
+                    { title: "Gógyi felügyelő: A tavi szörny átka", id: "UbqaKqjn8zQ", duration: 1340 },
                     { title: "Nyekk, a macska- Szép remények", id: "fpxlwyp6f88", duration: 1162 }
                 ]
             }
@@ -798,12 +800,12 @@
             if (tvSet.classList.contains('tv-fullscreen-mode')) {
                 tvSet.classList.toggle('show-controls');
 
-                // Automatikus elrejtés 2 másodperc után, ha nem nyúlnak hozzá
+                // Automatikus elrejtés 3 másodperc után, ha nem nyúlnak hozzá
                 clearTimeout(window.controlsTimer);
                 if (tvSet.classList.contains('show-controls')) {
                     window.controlsTimer = setTimeout(() => {
                         tvSet.classList.remove('show-controls');
-                    }, 2000);
+                    }, 3000);
                 }
             }
         });
@@ -811,6 +813,7 @@
 </body>
 
 </html>
+
 
 
 
