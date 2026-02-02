@@ -163,6 +163,25 @@
             }
         }
 
+        /* Android TV / Low Spec Optimization */
+        body.tv-mode .phosphor-mask,
+        body.tv-mode .flicker,
+        body.tv-mode .glass-overlay,
+        body.tv-mode .tv-set::after {
+            display: none !important;
+            animation: none !important;
+        }
+
+        body.tv-mode .scanlines {
+            opacity: 0.3 !important;
+            background-image: linear-gradient(rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.2) 50%) !important;
+        }
+
+        body.tv-mode .tv-set {
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8) !important;
+            filter: none !important;
+        }
+
         /* Landscape optimalizáció mobilon */
         @media (max-width: 950px) and (orientation: landscape) {
             .tv-set {
@@ -1059,6 +1078,25 @@
                 }
             }
         });
+        // Android TV detektálás és optimalizálás
+        function detectTV() {
+            const ua = navigator.userAgent.toLowerCase();
+            const isTV = ua.includes('tv') ||
+                (ua.includes('android') && !ua.includes('mobile')) ||
+                ua.includes('smart-tv') ||
+                ua.includes('google-tv') ||
+                ua.includes('bravia') ||
+                ua.includes('web0s') ||
+                ua.includes('tizen');
+
+            if (isTV) {
+                document.body.classList.add('tv-mode');
+                console.log("TV Mode Activated: Optimized for performance");
+            }
+        }
+
+        // Futás azonnal
+        detectTV();
     </script>
 </body>
 
