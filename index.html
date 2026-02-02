@@ -641,11 +641,89 @@
             isTvOn = true;
             powerBtn.classList.add('on');
 
+            // CRT bekapcsolási hang (Web Audio API)
+            playPowerOnSound();
+
             // Automatikus hang bekapcsolás (mivel a PWR gombnyomás user interaction)
             isMuted = false;
             volBtn.classList.add('on');
 
             syncToBroadcast();
+        }
+
+        function playPowerOnSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const now = ctx.currentTime;
+
+                // 1. Mechanikus kattanás (kapcsoló hangja)
+                const clickBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+                const clickData = clickBuffer.getChannelData(0);
+                for (let i = 0; i < clickData.length; i++) {
+                    clickData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.008));
+                }
+                const clickSource = ctx.createBufferSource();
+                const clickGain = ctx.createGain();
+                const clickFilter = ctx.createBiquadFilter();
+                clickFilter.type = 'lowpass';
+                clickFilter.frequency.value = 2000;
+                clickSource.buffer = clickBuffer;
+                clickGain.gain.value = 0.4;
+                clickSource.connect(clickFilter);
+                clickFilter.connect(clickGain);
+                clickGain.connect(ctx.destination);
+                clickSource.start(now);
+
+                // 2. Flyback transzformátor sivítás (15kHz - a CRT jellegzetes hangja)
+                const flybackOsc = ctx.createOscillator();
+                const flybackGain = ctx.createGain();
+                flybackOsc.type = 'sine';
+                flybackOsc.frequency.value = 15000;
+                flybackGain.gain.setValueAtTime(0, now + 0.03);
+                flybackGain.gain.linearRampToValueAtTime(0.015, now + 0.08);
+                flybackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                flybackOsc.connect(flybackGain);
+                flybackGain.connect(ctx.destination);
+                flybackOsc.start(now + 0.03);
+                flybackOsc.stop(now + 0.6);
+
+                // 3. Degaussing tekercs mormolás (mély rezgés)
+                const degaussOsc = ctx.createOscillator();
+                const degaussGain = ctx.createGain();
+                degaussOsc.type = 'sine';
+                degaussOsc.frequency.setValueAtTime(120, now + 0.02);
+                degaussOsc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+                degaussGain.gain.setValueAtTime(0, now + 0.02);
+                degaussGain.gain.linearRampToValueAtTime(0.12, now + 0.05);
+                degaussGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                degaussOsc.connect(degaussGain);
+                degaussGain.connect(ctx.destination);
+                degaussOsc.start(now + 0.02);
+                degaussOsc.stop(now + 0.35);
+
+                // 4. Elektromos "puff" (képcső feltöltődés)
+                const puffBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.15, ctx.sampleRate);
+                const puffData = puffBuffer.getChannelData(0);
+                for (let i = 0; i < puffData.length; i++) {
+                    const t = i / ctx.sampleRate;
+                    puffData[i] = (Math.random() * 2 - 1) * 0.1 * Math.exp(-t * 15);
+                }
+                const puffSource = ctx.createBufferSource();
+                const puffGain = ctx.createGain();
+                const puffFilter = ctx.createBiquadFilter();
+                puffFilter.type = 'bandpass';
+                puffFilter.frequency.value = 800;
+                puffFilter.Q.value = 1;
+                puffSource.buffer = puffBuffer;
+                puffGain.gain.value = 0.5;
+                puffSource.connect(puffFilter);
+                puffFilter.connect(puffGain);
+                puffGain.connect(ctx.destination);
+                puffSource.start(now + 0.01);
+
+            } catch (e) {
+                // Ha nem támogatott, csendben folytatjuk
+            }
         }
 
         function turnOffTV() {
