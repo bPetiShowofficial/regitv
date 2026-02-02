@@ -796,12 +796,17 @@
         function nextChannel() { if (isTvOn) { currentChannelIndex = (currentChannelIndex + 1) % CHANNELS.length; syncToBroadcast(); } }
         function prevChannel() { if (isTvOn) { currentChannelIndex = (currentChannelIndex - 1 + CHANNELS.length) % CHANNELS.length; syncToBroadcast(); } }
 
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
         function toggleFullscreen() {
             const tvSet = document.querySelector('.tv-set');
             const isCrtOff = document.querySelector('.crt-screen').classList.contains('crt-off');
+            const isMobile = isMobileDevice();
 
-            // HA CRT KI VAN KAPCSOLVA: Próbáljuk meg a natív videó lejátszót teljes képernyőre tenni
-            if (isCrtOff && ytPlayer) {
+            // HA MOBIL ÉS CRT KI VAN KAPCSOLVA: Próbáljuk meg a natív videó lejátszót
+            if (isMobile && isCrtOff && ytPlayer) {
                 const iframe = ytPlayer.getIframe();
                 /* 
                    Mobilon a natív lejátszóhoz a videó elemet vagy az frame-et kellene fullscreen-be tenni.
