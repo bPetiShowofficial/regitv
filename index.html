@@ -193,12 +193,20 @@
             border-color: #111 !important;
         }
 
-        body.tv-mode .crt-screen {
-            mask-image: none !important;
-            -webkit-mask-image: none !important;
-            border-radius: 0 !important;
-            border: none !important;
-            /* Keret eltávolítva */
+        body.tv-mode .tv-set::before {
+            display: none !important;
+            /* Fix top bezel color mismatch */
+        }
+
+        body.tv-mode .channel-display {
+            font-size: 16px !important;
+            padding: 3px 10px !important;
+            min-width: 25px !important;
+        }
+
+        body.tv-mode .brand-logo {
+            font-size: 18px !important;
+            letter-spacing: 2px !important;
         }
 
         body.tv-mode .controls-panel {
@@ -207,6 +215,24 @@
             /* Egybeolvad a kerettel */
             border-top: none !important;
             box-shadow: none !important;
+            padding: 0 20px !important;
+            /* Reduce horizontal crowding */
+            height: 60px !important;
+            /* Slimmer panel */
+        }
+
+        body.tv-mode .btn {
+            width: 40px !important;
+            height: 40px !important;
+            font-size: 8px !important;
+        }
+
+        body.tv-mode .crt-screen {
+            mask-image: none !important;
+            -webkit-mask-image: none !important;
+            border-radius: 0 !important;
+            border: none !important;
+            /* Keret eltávolítva */
         }
 
         body.tv-mode .screen-container {
