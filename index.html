@@ -53,6 +53,8 @@
             border: 4px solid #111;
             transform-origin: center;
             filter: drop-shadow(0 0 40px rgba(100, 150, 255, 0.1));
+            will-change: transform;
+            /* Teljesítmény optimalizálás */
         }
 
         .tv-set::after {
@@ -66,6 +68,22 @@
             z-index: -1;
             pointer-events: none;
             animation: ambient-pulse 6s infinite alternate;
+        }
+
+        /* Sleep Mode: Ha a TV ki van kapcsolva, minden animáció leáll a teljesítmény érdekében */
+        .tv-set.power-off .scanlines,
+        .tv-set.power-off .flicker,
+        .tv-set.power-off .phosphor-mask,
+        .tv-set.power-off .glass-overlay,
+        .tv-set.power-off::after {
+            display: none !important;
+            animation: none !important;
+        }
+
+        .tv-set.power-off .crt-screen {
+            mask-image: none !important;
+            -webkit-mask-image: none !important;
+            background: #050505;
         }
 
         @keyframes ambient-pulse {
@@ -761,6 +779,7 @@
 
         function turnOnTV() {
             isTvOn = true;
+            document.querySelector('.tv-set').classList.remove('power-off'); // Sleep Mode kikapcsolása
             powerBtn.classList.add('on');
 
             // CRT bekapcsolási hang (Web Audio API)
@@ -772,6 +791,11 @@
 
             syncToBroadcast();
         }
+
+        // Induláskor legyen Power Off (Sleep Mode) állapotban
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelector('.tv-set').classList.add('power-off');
+        });
 
         let audioCtx = null;
 
@@ -864,6 +888,7 @@
 
         function turnOffTV() {
             isTvOn = false;
+            document.querySelector('.tv-set').classList.add('power-off'); // Sleep Mode bekapcsolása
             powerBtn.classList.remove('on');
             volBtn.classList.remove('on');
             isMuted = true;
