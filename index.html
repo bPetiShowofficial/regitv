@@ -576,6 +576,25 @@
             z-index: 9999 !important;
             margin: 0 !important;
         }
+
+        /* Fullscreen gomb méretek mobilon, különös tekintettel a landscape nézetre */
+        @media (max-width: 950px) {
+            .tv-fullscreen-mode .btn {
+                width: 48px !important;
+                height: 48px !important;
+                font-size: 9px !important;
+            }
+
+            .tv-fullscreen-mode .controls-panel {
+                min-height: 80px !important;
+                gap: 20px !important;
+            }
+
+            .tv-fullscreen-mode .channel-display {
+                font-size: 20px !important;
+                padding: 5px 15px !important;
+            }
+        }
     </style>
 </head>
 
