@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>Magyar Retro TV</title>
+    <link rel="preconnect" href="https://www.youtube.com">
+    <link rel="preconnect" href="https://www.google.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
     <style>
         :root {
             --tv-body: #1a1a1a;
@@ -86,6 +89,10 @@
                 max-height: 80vh;
                 border: none;
                 border-radius: 0;
+                box-shadow: none;
+                /* Teljesítmény javítás mobilon */
+                filter: none;
+                /* Filterek kikapcsolása mobilon a sebességért */
             }
 
             .screen-container {
@@ -123,6 +130,14 @@
 
             .brand-logo {
                 display: none;
+            }
+
+            /* Teljesítmény optimalizálás: Nehéz SVG zaj effekt kikapcsolása mobilon */
+            #static-noise::after {
+                background-image: none !important;
+                background: repeating-linear-gradient(45deg, #111 0px, #222 1px, #111 2px) !important;
+                opacity: 0.1 !important;
+                animation: none !important;
             }
         }
 
@@ -747,10 +762,24 @@
             syncToBroadcast();
         }
 
-        function playPowerOnSound() {
+        let audioCtx = null;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        async function playPowerOnSound() {
             try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const ctx = getAudioContext();
                 const now = ctx.currentTime;
+                // Biztosítjuk, hogy a context fut
+                if (ctx.state === 'suspended') await ctx.resume();
 
                 // 1. Mechanikus kattanás (kapcsoló hangja)
                 const clickBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
