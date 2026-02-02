@@ -75,40 +75,73 @@
 
         @media (max-width: 850px) {
             .tv-set {
-                width: 95vw;
-                height: calc(95vw * 0.75);
+                width: 100vw;
+                height: auto;
+                aspect-ratio: 4/3.8;
+                max-width: 100vw;
+                max-height: 80vh;
+                border: none;
+                border-radius: 0;
+            }
+
+            .screen-container {
+                border-width: 10px;
             }
 
             .controls-panel {
-                padding: 10px !important;
+                padding: 15px !important;
                 height: auto !important;
                 flex-direction: column !important;
                 justify-content: center !important;
                 align-items: center !important;
-                gap: 15px !important;
+                gap: 12px !important;
+                border-top: 1px solid rgba(255, 255, 255, 0.05);
             }
 
             .buttons {
-                gap: 8px;
+                gap: 10px;
                 flex-wrap: wrap;
                 justify-content: center !important;
                 width: 100%;
             }
 
             .btn {
-                width: 44px;
-                height: 44px;
-                font-size: 8px;
+                width: 48px;
+                height: 48px;
+                font-size: 9px;
             }
 
             .channel-display {
                 font-size: 18px;
-                padding: 5px 12px;
-                margin-bottom: 5px;
+                padding: 6px 14px;
+                margin-bottom: 2px;
             }
 
             .brand-logo {
                 display: none;
+            }
+        }
+
+        /* Landscape optimalizáció mobilon */
+        @media (max-width: 950px) and (orientation: landscape) {
+            .tv-set {
+                height: 100vh;
+                height: 100dvh;
+                width: auto;
+                aspect-ratio: 4/3;
+                max-width: 100vw;
+            }
+
+            .controls-panel {
+                padding: 5px 20px !important;
+                height: 60px !important;
+                flex-direction: row !important;
+            }
+
+            .btn {
+                width: 36px;
+                height: 36px;
+                font-size: 7px;
             }
         }
 
@@ -267,7 +300,6 @@
         .crt-off #youtube-player {
             transform: scale(1);
             filter: none;
-            pointer-events: auto;
         }
 
         #static-noise::after {
@@ -797,51 +829,9 @@
         function nextChannel() { if (isTvOn) { currentChannelIndex = (currentChannelIndex + 1) % CHANNELS.length; syncToBroadcast(); } }
         function prevChannel() { if (isTvOn) { currentChannelIndex = (currentChannelIndex - 1 + CHANNELS.length) % CHANNELS.length; syncToBroadcast(); } }
 
-        function isMobileDevice() {
-            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        }
-
         function toggleFullscreen() {
             const tvSet = document.querySelector('.tv-set');
-            const isCrtOff = document.querySelector('.crt-screen').classList.contains('crt-off');
-            const isMobile = isMobileDevice();
 
-            // HA MOBIL ÉS CRT KI VAN KAPCSOLVA: Próbáljuk meg a natív videó lejátszót
-            if (isMobile && isCrtOff && ytPlayer) {
-                const iframe = ytPlayer.getIframe();
-                /* 
-                   Mobilon a natív lejátszóhoz a videó elemet vagy az frame-et kellene fullscreen-be tenni.
-                   Az iframe-nek engedélyeznie kell a fullscreent (allow attribute), amit a YouTube API általában beállít.
-                   Bizonyos mobil böngészőkben (pl iOS Safari) a videó elemre kellene hivatkozni, de iframe-nél ez nem közvetlen.
-                   Próbáljuk meg az iframe-et fullscreenbe küldeni.
-                */
-
-                // Ha már fullscreenben vagyunk, lépjünk ki
-                const isDocFS = !!(document.fullscreenElement || document.webkitFullscreenElement ||
-                    document.mozFullScreenElement || document.msFullscreenElement);
-
-                if (isDocFS) {
-                    if (document.exitFullscreen) document.exitFullscreen();
-                    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-                } else {
-                    if (iframe.requestFullscreen) iframe.requestFullscreen();
-                    else if (iframe.webkitRequestFullscreen) iframe.webkitRequestFullscreen();
-                    else if (iframe.mozRequestFullScreen) iframe.mozRequestFullScreen();
-                    else if (iframe.msRequestFullscreen) iframe.msRequestFullscreen();
-                    // Ha az iframe nem támogatja (pl. cross-origin miatt), akkor fallback a régi módszerre
-                    else {
-                        // Fallback: Régi logika, ha nem sikerül a natív player
-                        handleContainerFullscreen(tvSet);
-                    }
-                }
-                return;
-            }
-
-            // HA CRT BE VAN KAPCSOLVA VAGY FALLBACK: Eredeti konténer fullscreen
-            handleContainerFullscreen(tvSet);
-        }
-
-        function handleContainerFullscreen(tvSet) {
             // Megnézzük a natív állapotot
             const isNativeFS = !!(document.fullscreenElement || document.webkitFullscreenElement ||
                 document.mozFullScreenElement || document.msFullscreenElement);
