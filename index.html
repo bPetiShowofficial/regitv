@@ -71,13 +71,20 @@
         }
 
         /* Sleep Mode: Ha a TV ki van kapcsolva, minden animáció leáll a teljesítmény érdekében */
+        /* Sleep Mode: Ha a TV ki van kapcsolva, minden animáció leáll a teljesítmény érdekében */
         .tv-set.power-off .scanlines,
         .tv-set.power-off .flicker,
         .tv-set.power-off .phosphor-mask,
-        .tv-set.power-off .glass-overlay,
         .tv-set.power-off::after {
             display: none !important;
             animation: none !important;
+        }
+
+        /* Javítás: Az overlay maradjon kattintható, de ne legyen rajta effekt */
+        .tv-set.power-off .glass-overlay {
+            background: transparent !important;
+            box-shadow: none !important;
+            /* Click events maradnak! */
         }
 
         .tv-set.power-off .crt-screen {
