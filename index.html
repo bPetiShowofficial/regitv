@@ -188,6 +188,9 @@
         body.tv-mode .tv-set {
             box-shadow: 0 0 50px rgba(0, 0, 0, 0.8) !important;
             filter: none !important;
+            background: #111 !important;
+            /* Unified Dark Theme */
+            border-color: #111 !important;
         }
 
         body.tv-mode .crt-screen {
@@ -200,8 +203,15 @@
 
         body.tv-mode .controls-panel {
             backdrop-filter: none !important;
-            /* Memória sávszélesség spórolás */
-            background: rgba(10, 10, 10, 0.98) !important;
+            background: #111 !important;
+            /* Egybeolvad a kerettel */
+            border-top: none !important;
+            box-shadow: none !important;
+        }
+
+        body.tv-mode .screen-container {
+            border-color: #111 !important;
+            /* Seamless blending */
         }
 
         /* Landscape optimalizáció mobilon */
