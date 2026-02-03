@@ -279,6 +279,16 @@
                 font-size: 7px !important;
             }
 
+            #scan-btn .full-label {
+                display: none;
+            }
+
+            #scan-btn .short-label {
+                display: inline;
+                font-size: 10px !important;
+                line-height: 1;
+            }
+
             .brand-logo {
                 display: none !important;
             }
@@ -610,6 +620,10 @@
             letter-spacing: -0.3px;
         }
 
+        .short-label {
+            display: none;
+        }
+
         .channel-display {
             font-family: 'Digital-7', monospace;
             background: #000;
@@ -746,8 +760,10 @@
                 <div class="channel-display" id="channel-num">--</div>
                 <button class="btn" onclick="prevChannel()" title="Előző Csatorna">▼</button>
                 <button class="btn" onclick="nextChannel()" title="Következő Csatorna">▲</button>
-                <button class="btn" id="scan-btn" onclick="toggleZoom()"
-                    title="Képernyő kitöltése (Scan)"><br>KÉPARÁNY<br>4:3</button>
+                <button class="btn" id="scan-btn" onclick="toggleZoom()" title="Képernyő kitöltése (Scan)">
+                    <span class="full-label"><br>KÉPARÁNY<br>4:3</span>
+                    <span class="short-label">4:3</span>
+                </button>
                 <button class="btn on" id="crt-btn" onclick="toggleCRT()" title="CRT Effekt ki/be">CRT</button>
                 <button class="btn" id="vol-btn" onclick="toggleMute()" title="Némítás ki/be">HANG</button>
                 <button class="btn" id="fs-btn" onclick="toggleFullscreen()" title="Teljes képernyő">⛶</button>
@@ -1109,7 +1125,17 @@
             const isActive = tvSet.classList.toggle('zoom-active');
             const scanBtn = document.getElementById('scan-btn');
             scanBtn.classList.toggle('on', isActive);
-            scanBtn.innerHTML = isActive ? '<br>KÉPARÁNY<br>SCAN' : '<br>KÉPARÁNY<br>4:3';
+
+            const fullLabel = scanBtn.querySelector('.full-label');
+            const shortLabel = scanBtn.querySelector('.short-label');
+
+            if (isActive) {
+                fullLabel.innerHTML = '<br>KÉPARÁNY<br>SCAN';
+                shortLabel.innerText = 'SCAN';
+            } else {
+                fullLabel.innerHTML = '<br>KÉPARÁNY<br>4:3';
+                shortLabel.innerText = '4:3';
+            }
         }
 
         function handleFullscreenChange(isFS) {
