@@ -821,6 +821,17 @@
                     { title: "A kullancs - Ananász anasztáz ellen", id: "RRk4wGD-PrM", duration: 1207 },
                     { title: "Nyekk, a macska- Szép remények", id: "fpxlwyp6f88", duration: 1162 }
                 ]
+            },
+            {
+                number: "02",
+                playlist: [
+                    { title: "Rejtélyek mocsara", id: "GjdN6t0iM38", duration: 5367 },
+                    { title: "Sherlock Holmes emlékíratai Karácsonyi ajándék 1994", id: "tMVn-Stt-ic", duration: 3184 },
+                    { title: "Az elvarázsolt dollár", id: "O-V2p8CqS_k", duration: 5313 },
+                    { title: "Linda - A szatír", id: "O8N2hG8p5-8", duration: 3240 },
+                    { title: "Bigyó felügyelő 2", id: "UhDSgs19n_U", duration: 5104 },
+                    { title: "Hamis a baba", id: "I8H5kG2p1-M", duration: 5160 }
+                ]
             }
         ];
 
@@ -832,6 +843,18 @@
         let isTvOn = false;
         let isMuted = true;
         let timer = null;
+        let lastAttemptedVideoId = null;
+
+        // Broken videók betöltése és mentése sessionStorage-ba
+        const storageKey = 'retro_tv_broken_videos';
+        const brokenVideos = new Set(JSON.parse(sessionStorage.getItem(storageKey) || "[]"));
+
+        function markVideoAsBroken(id) {
+            if (!id) return;
+            brokenVideos.add(id);
+            sessionStorage.setItem(storageKey, JSON.stringify([...brokenVideos]));
+            console.warn(`Video ${id} marked as broken and saved.`);
+        }
 
         const staticNoise = document.getElementById('static-noise');
         const channelDisplay = document.getElementById('channel-num');
@@ -857,7 +880,8 @@
                 },
                 events: {
                     'onReady': () => { isPlayerReady = true; console.log("YT Ready"); },
-                    'onStateChange': onPlayerStateChange
+                    'onStateChange': onPlayerStateChange,
+                    'onError': handlePlayerError
                 }
             });
         }
@@ -871,6 +895,16 @@
                 playerIframe.style.opacity = '1';
                 playerIframe.style.animation = 'turnOn 0.4s ease-out forwards';
             }
+        }
+
+        function handlePlayerError(event) {
+            console.warn("Video error detected, code: " + event.data);
+            const videoId = lastAttemptedVideoId || (ytPlayer.getVideoData ? ytPlayer.getVideoData().video_id : null);
+            if (videoId) {
+                markVideoAsBroken(videoId);
+            }
+            // Azonnali újraszinkronizálás
+            syncToBroadcast();
         }
 
         (function loadYouTubeAPI() {
@@ -1027,11 +1061,24 @@
         function syncToBroadcast() {
             if (!isTvOn) return;
             const currentChannel = CHANNELS[currentChannelIndex];
-            const totalDuration = currentChannel.playlist.reduce((sum, vid) => sum + vid.duration, 0);
+
+            // Csak a működő videókkal számolunk
+            const workingPlaylist = currentChannel.playlist.filter(vid => !brokenVideos.has(vid.id));
+
+            if (workingPlaylist.length === 0) {
+                console.error("No working videos left on this channel!");
+                channelDisplay.innerText = "ERR";
+                return;
+            }
+
+            // A szinkron alapja mostantól csak a működő tartalom összhossza
+            const totalDuration = workingPlaylist.reduce((sum, vid) => sum + vid.duration, 0);
             const elapsed = Math.floor(Date.now() / 1000) - REFERENCE_TIME;
             let cycleTime = elapsed % totalDuration;
+
             let accumulated = 0;
-            for (const vid of currentChannel.playlist) {
+            for (let i = 0; i < workingPlaylist.length; i++) {
+                const vid = workingPlaylist[i];
                 if (cycleTime >= accumulated && cycleTime < accumulated + vid.duration) {
                     channelDisplay.innerText = currentChannel.number;
                     playChannel(vid, Math.floor(cycleTime - accumulated));
@@ -1056,14 +1103,27 @@
             clearTimeout(timer);
             setTimeout(() => {
                 if (!isTvOn) return;
+                lastAttemptedVideoId = video.id;
                 ytPlayer.loadVideoById({ videoId: video.id, startSeconds: startTime, suggestedQuality: 'medium' });
                 isMuted ? ytPlayer.mute() : ytPlayer.unMute();
                 timer = setTimeout(syncToBroadcast, Math.max(0, (video.duration - startTime) * 1000 - 1000));
             }, 400); // Rövidebb várakozás, nincs zaj
         }
 
-        function nextChannel() { if (isTvOn) { currentChannelIndex = (currentChannelIndex + 1) % CHANNELS.length; syncToBroadcast(); } }
-        function prevChannel() { if (isTvOn) { currentChannelIndex = (currentChannelIndex - 1 + CHANNELS.length) % CHANNELS.length; syncToBroadcast(); } }
+        function nextChannel() {
+            if (isTvOn) {
+                clearTimeout(timer);
+                currentChannelIndex = (currentChannelIndex + 1) % CHANNELS.length;
+                syncToBroadcast();
+            }
+        }
+        function prevChannel() {
+            if (isTvOn) {
+                clearTimeout(timer);
+                currentChannelIndex = (currentChannelIndex - 1 + CHANNELS.length) % CHANNELS.length;
+                syncToBroadcast();
+            }
+        }
 
         function toggleFullscreen() {
             const tvSet = document.querySelector('.tv-set');
