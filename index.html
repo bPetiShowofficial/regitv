@@ -579,6 +579,8 @@
             font-weight: bold;
             font-size: 10px;
             text-transform: uppercase;
+            line-height: 1.2;
+            text-align: center;
         }
 
         .btn.on {
@@ -600,6 +602,12 @@
         /* Teljes képernyő gomb kiemelése */
         #fs-btn {
             color: #9ab;
+            font-size: 27px;
+        }
+
+        #scan-btn {
+            font-size: 8px;
+            letter-spacing: -0.3px;
         }
 
         .channel-display {
@@ -719,7 +727,7 @@
 </head>
 
 <body>
-    <div class="tv-set zoom-active">
+    <div class="tv-set">
         <div class="screen-container">
             <div class="crt-screen">
                 <div class="scanlines"></div>
@@ -738,11 +746,11 @@
                 <div class="channel-display" id="channel-num">--</div>
                 <button class="btn" onclick="prevChannel()" title="Előző Csatorna">▼</button>
                 <button class="btn" onclick="nextChannel()" title="Következő Csatorna">▲</button>
-                <button class="btn on" id="scan-btn" onclick="toggleZoom()"
-                    title="Képernyő kitöltése (Scan)">KITÖLT</button>
+                <button class="btn" id="scan-btn" onclick="toggleZoom()"
+                    title="Képernyő kitöltése (Scan)"><br>KÉPARÁNY<br>4:3</button>
                 <button class="btn on" id="crt-btn" onclick="toggleCRT()" title="CRT Effekt ki/be">CRT</button>
                 <button class="btn" id="vol-btn" onclick="toggleMute()" title="Némítás ki/be">HANG</button>
-                <button class="btn" id="fs-btn" onclick="toggleFullscreen()" title="Teljes képernyő">TELJES KÉP</button>
+                <button class="btn" id="fs-btn" onclick="toggleFullscreen()" title="Teljes képernyő">⛶</button>
                 <button class="btn btn-power" id="power-btn" onclick="togglePower()" title="Bekapcsolás">BE/KI</button>
             </div>
         </div>
@@ -1099,7 +1107,9 @@
         function toggleZoom() {
             const tvSet = document.querySelector('.tv-set');
             const isActive = tvSet.classList.toggle('zoom-active');
-            document.getElementById('scan-btn').classList.toggle('on', isActive);
+            const scanBtn = document.getElementById('scan-btn');
+            scanBtn.classList.toggle('on', isActive);
+            scanBtn.innerHTML = isActive ? '<br>KÉPARÁNY<br>SCAN' : '<br>KÉPARÁNY<br>4:3';
         }
 
         function handleFullscreenChange(isFS) {
