@@ -335,39 +335,13 @@
             width: 100%;
             height: 100%;
             border: none;
-            opacity: 1;
-            /* Alapból látható legyen, ha a TV be van kapcsolva */
+            opacity: 0;
             transition: opacity 0.5s, transform 0.3s ease;
             transform: scale(1.05);
             filter: contrast(1.1) brightness(1.1) saturate(1.2);
-            /* pointer-events: none; */
+            pointer-events: none;
             position: relative;
-            z-index: 5;
             will-change: transform, opacity;
-        }
-
-        /* Csak kikapcsolt állapotban rejtjük el a playert */
-        .tv-set.power-off #youtube-player {
-            opacity: 0 !important;
-            pointer-events: none !important;
-        }
-
-        /* Reklám alatt a lejátszót legfelülre emeljük, hogy kattintható legyen a Skip gomb */
-        .ad-playing #youtube-player {
-            pointer-events: auto !important;
-            z-index: 100 !important;
-        }
-
-        /* Elhalványítjuk az effekteket reklám alatt a jobb láthatóságért */
-        .ad-playing .scanlines,
-        .ad-playing .phosphor-mask,
-        .ad-playing .flicker {
-            opacity: 0.05 !important;
-        }
-
-        .ad-playing .glass-overlay {
-            opacity: 0.1 !important;
-            pointer-events: none !important;
         }
 
         .tv-set.zoom-active #youtube-player {
@@ -428,12 +402,6 @@
             pointer-events: auto;
             z-index: 25;
             border-radius: 2px;
-            transition: pointer-events 0.3s;
-        }
-
-        /* Reklám alatt átengedjük a klikket a Skip Ad gombhoz a glass-overlayen is */
-        .ad-playing .glass-overlay {
-            pointer-events: none !important;
         }
 
         .flicker {
@@ -880,7 +848,6 @@
         let timer = null;
         let heartbeatInterval = null;
         let lastAttemptedVideoId = null;
-        let lastExpectedDuration = 0;
 
         // Broken videók betöltése
         const brokenVideos = new Set(JSON.parse(sessionStorage.getItem(STORAGE_KEY_BROKEN) || "[]"));
@@ -898,38 +865,6 @@
         const powerBtn = document.getElementById('power-btn');
         const volBtn = document.getElementById('vol-btn');
 
-        let adCheckInterval = null;
-
-        function checkAdState() {
-            if (!ytPlayer || !ytPlayer.getVideoData || !isTvOn) return;
-            const tvSet = document.querySelector('.tv-set');
-            const data = ytPlayer.getVideoData();
-            const playerDuration = ytPlayer.getDuration();
-
-            // Reklám észlelése: 
-            // 1. ID eltérés 
-            // 2. YouTube API állapot (ha elérhető)
-            // 3. IDŐTARTAM ELTÉRÉS (Mid-roll reklámok észlelése!)
-            const isAd = (data && data.video_id && data.video_id !== lastAttemptedVideoId) ||
-                (ytPlayer.getAdState && ytPlayer.getAdState() !== -1) ||
-                (Math.abs(playerDuration - lastExpectedDuration) > 10 && playerDuration > 0 && lastExpectedDuration > 0);
-
-            if (isAd) {
-                if (!tvSet.classList.contains('ad-playing')) {
-                    tvSet.classList.add('ad-playing');
-                    // Leállítjuk a szinkron-időzítőt is, hogy ne próbáljon meg váltani reklám közben
-                    clearTimeout(timer);
-                    console.log("ULTRA Ad Detection: Player elevated and sync paused.");
-                }
-            } else {
-                if (tvSet.classList.contains('ad-playing')) {
-                    tvSet.classList.remove('ad-playing');
-                    console.log("Ad ended: Restoring sync.");
-                    syncToBroadcast();
-                }
-            }
-        }
-
         function onYouTubeIframeAPIReady() {
             const host = window.location.protocol === 'file:' ? 'http://localhost' : window.location.origin;
             ytPlayer = new YT.Player('youtube-player', {
@@ -937,7 +872,7 @@
                 width: '100%',
                 playerVars: {
                     'autoplay': 1,
-                    'controls': 1, // Szükséges a reklámok kezeléséhez (Skip Ad gomb)
+                    'controls': 0,
                     'disablekb': 1,
                     'enablejsapi': 1,
                     'iv_load_policy': 3,
@@ -950,7 +885,6 @@
                 events: {
                     'onReady': () => { isPlayerReady = true; console.log("YT Ready"); },
                     'onStateChange': onPlayerStateChange,
-                    'onAdEvent': (e) => { checkAdState(); console.log("Ad Event:", e.data); },
                     'onError': handlePlayerError
                 }
             });
@@ -958,22 +892,16 @@
 
         function onPlayerStateChange(event) {
             const playerIframe = ytPlayer.getIframe();
-            const tvSet = document.querySelector('.tv-set');
-
             if (event.data == YT.PlayerState.PLAYING) {
-                tvSet.classList.remove('changing-channel');
+                document.querySelector('.tv-set').classList.remove('changing-channel');
                 staticNoise.style.transition = 'opacity 0.6s';
                 staticNoise.style.opacity = '0.05';
                 playerIframe.style.opacity = '1';
                 playerIframe.style.animation = 'turnOn 0.4s ease-out forwards';
-
-                checkAdState();
             } else if (event.data == YT.PlayerState.ENDED) {
-                tvSet.classList.remove('ad-playing');
+                // Ha vége a videónak, azonnal szinkronizálunk (zökkenőmentes váltás)
                 console.log("Video ended naturally, syncing next...");
                 syncToBroadcast();
-            } else if (event.data == YT.PlayerState.BUFFERING) {
-                checkAdState();
             }
         }
 
@@ -1028,15 +956,11 @@
 
             syncToBroadcast();
 
-            // Heartbeat szinkron: 10 másodpercenként (reklámmentes gépnél)
+            // Heartbeat szinkron: 10 másodpercenként ellenőrizzük az elcsúszást (reklámok/pufferelés ellen)
             clearInterval(heartbeatInterval);
             heartbeatInterval = setInterval(() => {
                 if (isTvOn) syncToBroadcast();
             }, 10000);
-
-            // Gyors reklám-figyelő: 1 másodpercenként (reklámot mutató gépnél)
-            clearInterval(adCheckInterval);
-            adCheckInterval = setInterval(checkAdState, 1000);
         }
 
         // Induláskor legyen Power Off (Sleep Mode) állapotban
@@ -1142,7 +1066,6 @@
             channelDisplay.innerText = "--";
             clearTimeout(timer);
             clearInterval(heartbeatInterval);
-            clearInterval(adCheckInterval);
             if (ytPlayer && isPlayerReady) {
                 ytPlayer.stopVideo();
                 const playerIframe = ytPlayer.getIframe();
@@ -1155,14 +1078,6 @@
 
         function syncToBroadcast() {
             if (!isTvOn) return;
-            const tvSet = document.querySelector('.tv-set');
-
-            // Reklám alatt nem szinkronizálunk (nem akarjuk megölni a reklámot)
-            if (tvSet.classList.contains('ad-playing')) {
-                console.log("Sync paused: Ad in progress.");
-                return;
-            }
-
             const currentChannel = CHANNELS[currentChannelIndex];
 
             // 1. Csak a működő videókat vesszük figyelembe (Dinamikus Virtuális Csatorna)
@@ -1236,7 +1151,6 @@
             setTimeout(() => {
                 if (!isTvOn) return;
                 lastAttemptedVideoId = video.id;
-                lastExpectedDuration = video.duration;
                 ytPlayer.loadVideoById({ videoId: video.id, startSeconds: startTime, suggestedQuality: 'medium' });
                 isMuted ? ytPlayer.mute() : ytPlayer.unMute();
 
@@ -1371,15 +1285,13 @@
             }
         });
 
-        // Új megoldás: Kattintás a TV kávájára (bezel) vagy a képernyőre toggolja a gombokat
-        document.querySelector('.tv-set').addEventListener('click', (e) => {
+        // Új megoldás: Kattintás a képernyőre toggolja a gombokat teljes képernyőben
+        document.querySelector('.glass-overlay').addEventListener('click', (e) => {
             const tvSet = document.querySelector('.tv-set');
-            const controls = document.querySelector('.controls-panel');
-
-            // Csak akkor ha fullscreenben vagyunk ÉS nem egy gombot nyomtunk meg
-            if (tvSet.classList.contains('tv-fullscreen-mode') && !e.target.closest('.btn')) {
+            if (tvSet.classList.contains('tv-fullscreen-mode')) {
                 tvSet.classList.toggle('show-controls');
 
+                // Automatikus elrejtés 2,5 másodperc után, ha nem nyúlnak hozzá
                 clearTimeout(window.controlsTimer);
                 if (tvSet.classList.contains('show-controls')) {
                     window.controlsTimer = setTimeout(() => {
