@@ -341,7 +341,26 @@
             filter: contrast(1.1) brightness(1.1) saturate(1.2);
             pointer-events: none;
             position: relative;
+            z-index: 5;
             will-change: transform, opacity;
+        }
+
+        /* Reklám alatt a lejátszót legfelülre emeljük, hogy kattintható legyen a Skip gomb */
+        .ad-playing #youtube-player {
+            pointer-events: auto !important;
+            z-index: 100 !important;
+            opacity: 1 !important;
+        }
+
+        /* Elhalványítjuk az effekteket reklám alatt a jobb láthatóságért */
+        .ad-playing .scanlines,
+        .ad-playing .phosphor-mask,
+        .ad-playing .flicker {
+            opacity: 0.1 !important;
+        }
+
+        .ad-playing .glass-overlay {
+            opacity: 0.2 !important;
         }
 
         .tv-set.zoom-active #youtube-player {
@@ -405,9 +424,9 @@
             transition: pointer-events 0.3s;
         }
 
-        /* Reklám alatt átengedjük a klikket a Skip Ad gombhoz */
+        /* Reklám alatt átengedjük a klikket a Skip Ad gombhoz a glass-overlayen is */
         .ad-playing .glass-overlay {
-            pointer-events: none;
+            pointer-events: none !important;
         }
 
         .flicker {
