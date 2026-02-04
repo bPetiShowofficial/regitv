@@ -338,18 +338,53 @@
             opacity: 0;
             transition: opacity 0.5s, transform 0.3s ease;
             transform: scale(1.05);
+            /* Visszaállítva az eredetire */
             filter: contrast(1.1) brightness(1.1) saturate(1.2);
             pointer-events: none;
             position: relative;
-            will-change: transform, opacity;
+            will-change: transform, opacity, filter;
+        }
+
+        /* Reálisabb V-Sync ugrás effekt */
+        .vsync-jump {
+            animation: vsync-anim 0.15s ease-out;
+        }
+
+        @keyframes vsync-anim {
+            0% {
+                transform: scale(1.15) translateY(0);
+                filter: brightness(0);
+            }
+
+            0% {
+                transform: scale(1.05) translateY(0);
+                filter: brightness(0);
+            }
+
+            20% {
+                transform: scale(1.05) translateY(-5%);
+                filter: brightness(2);
+            }
+
+            40% {
+                transform: scale(1.05) translateY(5%);
+                filter: brightness(0);
+            }
+
+            100% {
+                transform: scale(1.05) translateY(0);
+                filter: brightness(1);
+            }
         }
 
         .tv-set.zoom-active #youtube-player {
             transform: scale(1.4) !important;
+            /* Visszaállítva */
         }
 
         .tv-set.zoom-active .crt-screen.crt-off #youtube-player {
             transform: scale(1.35) !important;
+            /* Visszaállítva */
         }
 
         .crt-screen {
@@ -460,7 +495,8 @@
         }
 
         .crt-off #youtube-player {
-            transform: scale(1);
+            transform: scale(1.05);
+            /* Visszaállítva */
             filter: none;
         }
 
@@ -658,6 +694,25 @@
             }
         }
 
+        /* Blackout effekt váltáskor */
+        .blackout {
+            animation: blackout-anim 0.3s ease-out;
+        }
+
+        @keyframes blackout-anim {
+            0% {
+                filter: brightness(0);
+            }
+
+            30% {
+                filter: brightness(0);
+            }
+
+            100% {
+                filter: brightness(1);
+            }
+        }
+
         .tv-fullscreen-mode {
             border: none !important;
             box-shadow: none !important;
@@ -737,6 +792,63 @@
                 padding: 5px 15px !important;
             }
         }
+
+        /* OSD Styles - Global */
+        #osd-container {
+            position: absolute;
+            top: 12%;
+            left: 8%;
+            z-index: 9999;
+            pointer-events: none;
+            color: #2f2;
+            text-shadow: 2px 2px 4px #000, 0 0 10px rgba(0, 255, 0, 0.5);
+            font-family: 'Courier New', monospace;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            line-height: 1.4;
+            max-width: 80%;
+        }
+
+        #osd-container.show {
+            opacity: 1;
+        }
+
+        #osd-channel {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        #osd-title {
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #osd-remaining {
+            font-size: 1rem;
+            background: rgba(0, 40, 0, 0.4);
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+
+        @media (max-width: 850px) {
+            #osd-channel {
+                font-size: 1.8rem;
+            }
+
+            #osd-title {
+                font-size: 0.9rem;
+            }
+
+            #osd-remaining {
+                font-size: 0.8rem;
+            }
+        }
     </style>
 </head>
 
@@ -749,8 +861,12 @@
                 <div class="flicker"></div>
                 <div class="glass-overlay"></div>
                 <div id="static-noise"></div>
-                <!-- Div placeholder for YouTube API -->
                 <div id="youtube-player"></div>
+                <div id="osd-container">
+                    <div id="osd-channel"></div>
+                    <div id="osd-title"></div>
+                    <div id="osd-remaining"></div>
+                </div>
             </div>
         </div>
         <div class="hover-zone"></div>
@@ -825,12 +941,12 @@
             {
                 number: "02",
                 playlist: [
-                    { title: "Bigyó felügyelő 2", id: "UhDSgs19n_U", duration: 5105 },
-                    { title: "Egy amerikai Kínában", id: "uKCruWyxTzg", duration: 5182 },
+                    { title: "A bolond és az okos", id: "YNgD_VPdLco", duration: 54 },
+                    { title: "1 Perc és Nyersz! Doboz a dróton", id: "tMuTYy35fmc", duration: 27 },
                     { title: "Az elvarázsolt dollár", id: "O-V2p8CqS_k", duration: 5313 },
-                    { title: "Töketlenek teljes", id: "jauV_f53JuA", duration: 5451 },
+                    { title: "Én egy kaki vagyok...", id: "Kx-g5uNFPoA", duration: 33 },
                     { title: "Linda - A szatír", id: "O8N2hG8p5-8", duration: 3240 },
-                    { title: "Ne légy barom, míg iszod a dzsúszod a gettóban", id: "KTzlt6M-2oc", duration: 5332 },
+                    { title: "Húsvéti locsolo vers", id: "REvaOKTU4J8", duration: 27 },
                     { title: "Hamis a baba", id: "I8H5kG2p1-M", duration: 5160 }
                 ]
             }
@@ -846,8 +962,26 @@
         let isTvOn = false;
         let isMuted = true;
         let timer = null;
+        let osdTimer = null;
         let heartbeatInterval = null;
         let lastAttemptedVideoId = null;
+        let isManualSwitch = false; // Flag a szép váltáshoz
+
+        // Element kimentése a gyors eléréshez
+        const els = {
+            tvSet: document.querySelector('.tv-set'),
+            crtScreen: document.querySelector('.crt-screen'),
+            osd: document.getElementById('osd-container'),
+            osdChannel: document.getElementById('osd-channel'),
+            osdTitle: document.getElementById('osd-title'),
+            osdRemaining: document.getElementById('osd-remaining'),
+            staticNoise: document.getElementById('static-noise'),
+            channelNum: document.getElementById('channel-num'),
+            powerBtn: document.getElementById('power-btn'),
+            volBtn: document.getElementById('vol-btn'),
+            crtBtn: document.getElementById('crt-btn'),
+            scanBtn: document.getElementById('scan-btn')
+        };
 
         // Broken videók betöltése
         const brokenVideos = new Set(JSON.parse(sessionStorage.getItem(STORAGE_KEY_BROKEN) || "[]"));
@@ -860,10 +994,6 @@
             console.warn(`Video ${video.id} marked as broken.`);
         }
 
-        const staticNoise = document.getElementById('static-noise');
-        const channelDisplay = document.getElementById('channel-num');
-        const powerBtn = document.getElementById('power-btn');
-        const volBtn = document.getElementById('vol-btn');
 
         function onYouTubeIframeAPIReady() {
             const host = window.location.protocol === 'file:' ? 'http://localhost' : window.location.origin;
@@ -893,11 +1023,18 @@
         function onPlayerStateChange(event) {
             const playerIframe = ytPlayer.getIframe();
             if (event.data == YT.PlayerState.PLAYING) {
-                document.querySelector('.tv-set').classList.remove('changing-channel');
-                staticNoise.style.transition = 'opacity 0.6s';
-                staticNoise.style.opacity = '0.05';
+                els.tvSet.classList.remove('changing-channel');
+                els.staticNoise.style.transition = 'opacity 0.6s';
+                els.staticNoise.style.opacity = '0.05';
+
                 playerIframe.style.opacity = '1';
-                playerIframe.style.animation = 'turnOn 0.4s ease-out forwards';
+                // Csak akkor játszunk animációt, ha manuális váltás vagy bekapcsolás volt
+                if (isManualSwitch) {
+                    playerIframe.style.animation = 'turnOn 0.4s ease-out forwards';
+                    isManualSwitch = false;
+                } else {
+                    playerIframe.style.animation = 'none';
+                }
             } else if (event.data == YT.PlayerState.ENDED) {
                 // Ha vége a videónak, azonnal szinkronizálunk (zökkenőmentes váltás)
                 console.log("Video ended naturally, syncing next...");
@@ -930,11 +1067,11 @@
             if (isMuted) {
                 ytPlayer.unMute();
                 isMuted = false;
-                volBtn.classList.add('on');
+                els.volBtn.classList.add('on');
             } else {
                 ytPlayer.mute();
                 isMuted = true;
-                volBtn.classList.remove('on');
+                els.volBtn.classList.remove('on');
             }
         }
 
@@ -944,15 +1081,16 @@
 
         function turnOnTV() {
             isTvOn = true;
-            document.querySelector('.tv-set').classList.remove('power-off'); // Sleep Mode kikapcsolása
-            powerBtn.classList.add('on');
+            isManualSwitch = true; // Bekapcsoláskor legyen animáció
+            els.tvSet.classList.remove('power-off');
+            els.powerBtn.classList.add('on');
 
             // CRT bekapcsolási hang (Web Audio API)
             playPowerOnSound();
 
             // Automatikus hang bekapcsolás (mivel a PWR gombnyomás user interaction)
             isMuted = false;
-            volBtn.classList.add('on');
+            els.volBtn.classList.add('on');
 
             syncToBroadcast();
 
@@ -965,7 +1103,7 @@
 
         // Induláskor legyen Power Off (Sleep Mode) állapotban
         document.addEventListener('DOMContentLoaded', () => {
-            document.querySelector('.tv-set').classList.add('power-off');
+            els.tvSet.classList.add('power-off');
         });
 
         let audioCtx = null;
@@ -1057,13 +1195,46 @@
             }
         }
 
+        function playSwitchSound() {
+            try {
+                const ctx = getAudioContext();
+                const now = ctx.currentTime;
+
+                // 1. Mechanikus "klikk"
+                const clickOsc = ctx.createOscillator();
+                const clickGain = ctx.createGain();
+                clickOsc.type = 'square';
+                clickOsc.frequency.setValueAtTime(800, now);
+                clickOsc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+                clickGain.gain.setValueAtTime(0.1, now);
+                clickGain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                clickOsc.connect(clickGain);
+                clickGain.connect(ctx.destination);
+                clickOsc.start(now);
+                clickOsc.stop(now + 0.05);
+
+                // 2. Mély "tump" (relé hang/feszültség lökés)
+                const thumpOsc = ctx.createOscillator();
+                const thumpGain = ctx.createGain();
+                thumpOsc.type = 'sine';
+                thumpOsc.frequency.setValueAtTime(60, now);
+                thumpOsc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+                thumpGain.gain.setValueAtTime(0.3, now);
+                thumpGain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                thumpOsc.connect(thumpGain);
+                thumpGain.connect(ctx.destination);
+                thumpOsc.start(now);
+                thumpOsc.stop(now + 0.15);
+            } catch (e) { }
+        }
+
         function turnOffTV() {
             isTvOn = false;
-            document.querySelector('.tv-set').classList.add('power-off'); // Sleep Mode bekapcsolása
-            powerBtn.classList.remove('on');
-            volBtn.classList.remove('on');
+            els.tvSet.classList.add('power-off'); // Sleep Mode bekapcsolása
+            els.powerBtn.classList.remove('on');
+            els.volBtn.classList.remove('on');
             isMuted = true;
-            channelDisplay.innerText = "--";
+            els.channelNum.innerText = "--";
             clearTimeout(timer);
             clearInterval(heartbeatInterval);
             if (ytPlayer && isPlayerReady) {
@@ -1072,12 +1243,32 @@
                 playerIframe.style.opacity = '0';
                 playerIframe.style.animation = 'none';
             }
-            staticNoise.style.transition = 'none';
-            staticNoise.style.opacity = '0';
+            els.staticNoise.style.transition = 'none';
+            els.staticNoise.style.opacity = '0';
+            els.osd.classList.remove('show');
         }
 
-        function syncToBroadcast() {
+        function showOSD(video, startTime) {
             if (!isTvOn) return;
+            clearTimeout(osdTimer);
+            const remaining = Math.max(0, video.duration - startTime);
+            const mins = Math.floor(remaining / 60);
+            const secs = remaining % 60;
+
+            const currentChannel = CHANNELS[currentChannelIndex];
+            els.osdChannel.innerText = `CH ${currentChannel.number}`;
+            els.osdTitle.innerText = video.title;
+            els.osdRemaining.innerText = `${mins}:${secs.toString().padStart(2, '0')} HÁTRA`;
+
+            els.osd.classList.add('show');
+            osdTimer = setTimeout(() => {
+                els.osd.classList.remove('show');
+            }, 5000);
+        }
+
+        function syncToBroadcast(isManual = false) {
+            if (!isTvOn) return;
+            if (isManual) isManualSwitch = true;
             const currentChannel = CHANNELS[currentChannelIndex];
 
             // 1. Csak a működő videókat vesszük figyelembe (Dinamikus Virtuális Csatorna)
@@ -1085,7 +1276,7 @@
 
             if (workingPlaylist.length === 0) {
                 console.error("No working videos left on this channel!");
-                channelDisplay.innerText = "ERR";
+                els.channelNum.innerText = "ERR";
                 return;
             }
 
@@ -1101,17 +1292,17 @@
             for (let i = 0; i < workingPlaylist.length; i++) {
                 const vid = workingPlaylist[i];
                 if (cycleTime >= accumulated && cycleTime < accumulated + vid.duration) {
-                    channelDisplay.innerText = currentChannel.number;
-                    playChannel(vid, Math.floor(cycleTime - accumulated));
+                    els.channelNum.innerText = currentChannel.number;
+                    playChannel(vid, Math.floor(cycleTime - accumulated), isManual);
                     return;
                 }
                 accumulated += vid.duration;
             }
         }
 
-        function playChannel(video, startTime = 0) {
+        function playChannel(video, startTime = 0, isManual = false) {
             if (!isPlayerReady) {
-                setTimeout(() => playChannel(video, startTime), 300);
+                setTimeout(() => playChannel(video, startTime, isManual), 300);
                 return;
             }
 
@@ -1124,53 +1315,68 @@
                     const drift = Math.abs(currentTime - startTime);
 
                     if (drift < 3) {
-                        // Minden rendben, csak az időzítőt frissítjük a végére
                         clearTimeout(timer);
-                        timer = setTimeout(syncToBroadcast, (video.duration - currentTime + 1) * 1000);
+                        timer = setTimeout(() => syncToBroadcast(false), (video.duration - currentTime + 1) * 1000);
                         return;
                     } else if (drift < 30) {
-                        // Csak egy kicsit csúszott el (pl. rövid reklám vagy pufferelés)
-                        // "Lágy szinkron": Csak odajumpolunk, nem töltünk újra mindent
                         console.log(`Soft-sync active: drifting ${Math.floor(drift)}s. Seeking...`);
                         ytPlayer.seekTo(startTime, true);
                         clearTimeout(timer);
-                        timer = setTimeout(syncToBroadcast, (video.duration - startTime + 1) * 1000);
+                        timer = setTimeout(() => syncToBroadcast(false), (video.duration - startTime + 1) * 1000);
                         return;
                     }
-                    // Ha 30s-nél nagyobb az eltérés, akkor jöhet a teljes újratöltés
                 }
             }
 
-            const tvSet = document.querySelector('.tv-set');
-            const playerIframe = ytPlayer.getIframe();
+            if (isManual) {
+                els.tvSet.classList.add('changing-channel');
+                els.staticNoise.style.opacity = '1';
+                playSwitchSound();
 
-            playerIframe.style.transition = 'opacity 0.15s';
-            playerIframe.style.opacity = '0';
+                const playerIframe = ytPlayer.getIframe();
+                if (playerIframe) {
+                    playerIframe.classList.remove('vsync-jump', 'blackout');
+                    void playerIframe.offsetWidth; // Reflow kényszerítése gyanánt
+                    playerIframe.classList.add('vsync-jump', 'blackout');
+                }
+            } else {
+                // Smooth transition: csak elhalványítás és halkítás nélkül indítjuk
+                const playerIframe = ytPlayer.getIframe();
+                if (playerIframe) {
+                    playerIframe.classList.remove('vsync-jump', 'blackout');
+                    playerIframe.style.transition = 'opacity 0.2s';
+                    playerIframe.style.opacity = '0';
+                }
+            }
 
             clearTimeout(timer);
+            const delay = isManual ? 400 : 100; // Manuális váltásnál van idő a zajra
+
             setTimeout(() => {
                 if (!isTvOn) return;
                 lastAttemptedVideoId = video.id;
                 ytPlayer.loadVideoById({ videoId: video.id, startSeconds: startTime, suggestedQuality: 'medium' });
                 isMuted ? ytPlayer.mute() : ytPlayer.unMute();
 
-                // Időzítés a videó vége után 1 másodperccel (végső tartalék, az ENDED esemény az elsődleges)
-                timer = setTimeout(syncToBroadcast, (video.duration - startTime + 1) * 1000);
-            }, 400);
+                showOSD(video, startTime);
+
+                // Időzítés a videó vége után 1 másodperccel
+                timer = setTimeout(() => syncToBroadcast(false), (video.duration - startTime + 1) * 1000);
+            }, delay);
         }
 
         function nextChannel() {
             if (isTvOn) {
                 clearTimeout(timer);
                 currentChannelIndex = (currentChannelIndex + 1) % CHANNELS.length;
-                syncToBroadcast();
+                syncToBroadcast(true); // Manuális váltás
             }
         }
         function prevChannel() {
             if (isTvOn) {
                 clearTimeout(timer);
                 currentChannelIndex = (currentChannelIndex - 1 + CHANNELS.length) % CHANNELS.length;
-                syncToBroadcast();
+                syncToBroadcast(true); // Manuális váltás
             }
         }
 
@@ -1225,18 +1431,16 @@
         }
 
         function toggleCRT() {
-            document.querySelector('.crt-screen').classList.toggle('crt-off');
-            document.getElementById('crt-btn').classList.toggle('on');
+            els.crtScreen.classList.toggle('crt-off');
+            els.crtBtn.classList.toggle('on');
         }
 
         function toggleZoom() {
-            const tvSet = document.querySelector('.tv-set');
-            const isActive = tvSet.classList.toggle('zoom-active');
-            const scanBtn = document.getElementById('scan-btn');
-            scanBtn.classList.toggle('on', isActive);
+            const isActive = els.tvSet.classList.toggle('zoom-active');
+            els.scanBtn.classList.toggle('on', isActive);
 
-            const fullLabel = scanBtn.querySelector('.full-label');
-            const shortLabel = scanBtn.querySelector('.short-label');
+            const fullLabel = els.scanBtn.querySelector('.full-label');
+            const shortLabel = els.scanBtn.querySelector('.short-label');
 
             if (isActive) {
                 fullLabel.innerHTML = '<br>KÉPARÁNY<br>SCAN';
@@ -1248,11 +1452,10 @@
         }
 
         function handleFullscreenChange(isFS) {
-            const tvSet = document.querySelector('.tv-set');
             if (isFS) {
-                tvSet.classList.add('manual-fullscreen');
-                Object.assign(tvSet.style, { width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: '0', padding: '0' });
-                tvSet.classList.add('tv-fullscreen-mode', 'show-controls'); // Azonnal mutassuk
+                els.tvSet.classList.add('manual-fullscreen');
+                Object.assign(els.tvSet.style, { width: '100vw', height: '100vh', maxWidth: 'none', maxHeight: 'none', borderRadius: '0', padding: '0' });
+                els.tvSet.classList.add('tv-fullscreen-mode', 'show-controls'); // Azonnal mutassuk
 
                 // 2,5 másodperc után elrejtjük, ha nincs interakció
                 clearTimeout(window.controlsTimer);
@@ -1260,10 +1463,10 @@
                     tvSet.classList.remove('show-controls');
                 }, 2500);
             } else {
-                tvSet.classList.remove('manual-fullscreen');
-                tvSet.classList.remove('show-controls');
-                Object.assign(tvSet.style, { width: '', height: '', maxWidth: '', maxHeight: '', borderRadius: '', padding: '' });
-                tvSet.classList.remove('tv-fullscreen-mode');
+                els.tvSet.classList.remove('manual-fullscreen');
+                els.tvSet.classList.remove('show-controls');
+                Object.assign(els.tvSet.style, { width: '', height: '', maxWidth: '', maxHeight: '', borderRadius: '', padding: '' });
+                els.tvSet.classList.remove('tv-fullscreen-mode');
             }
         }
 
@@ -1287,15 +1490,14 @@
 
         // Új megoldás: Kattintás a képernyőre toggolja a gombokat teljes képernyőben
         document.querySelector('.glass-overlay').addEventListener('click', (e) => {
-            const tvSet = document.querySelector('.tv-set');
-            if (tvSet.classList.contains('tv-fullscreen-mode')) {
-                tvSet.classList.toggle('show-controls');
+            if (els.tvSet.classList.contains('tv-fullscreen-mode')) {
+                els.tvSet.classList.toggle('show-controls');
 
                 // Automatikus elrejtés 2,5 másodperc után, ha nem nyúlnak hozzá
                 clearTimeout(window.controlsTimer);
-                if (tvSet.classList.contains('show-controls')) {
+                if (els.tvSet.classList.contains('show-controls')) {
                     window.controlsTimer = setTimeout(() => {
-                        tvSet.classList.remove('show-controls');
+                        els.tvSet.classList.remove('show-controls');
                     }, 2500);
                 }
             }
@@ -1323,4 +1525,3 @@
 </body>
 
 </html>
-
