@@ -901,7 +901,7 @@
                     { title: "Kölykök a 402-es tanteremből- Einstein fia", id: "TtJPh_RwcPE", duration: 1275 },
                     { title: "A kémkutyák titkos aktái 1. rész", id: "DeFgSw5xyy4", duration: 1215 },
                     { title: "Három jóbarát és Jerry - A rágcsáló kiállítás", id: "AiCl49qTigg", duration: 501 },
-                    { title: "Jack, a Kalóz - A három boszorkány legendás kincse", id: "Nnh98VdFrjU", duration: 1218 },
+                    { title: "Jack, a Kalóz (1. rész) - A három boszorkány legendás kincse", id: "Nnh98VdFrjU", duration: 1218 },
                     { title: "Denis a Komisz 1 rész", id: "5fE9xC8tM3E", duration: 1284 },
                     { title: "Nyekk, a macska- Srácok a hátsó udvarból", id: "yUWYTASXuF8", duration: 1206 },
                     { title: "Andy, a vagány- Mulya mályva", id: "h66GsBrDQXo", duration: 1274 },
@@ -912,10 +912,10 @@
                     { title: "Walter Melon, szuperhős rendelésre- Robin Wood", id: "WZlYGlXP2to", duration: 742 },
                     { title: "Nyekk, a macska- Cicamica, szeress belém!", id: "4Oc24HI5dzI", duration: 1217 },
                     { title: "Kölykök a 402-es tanteremből- A rágott rágógumik bolygója", id: "IaauxlnAF0Y", duration: 1277 },
-                    { title: "Dennis, a komisz - Halászd a bajt/Vágyott vagyon/Időzített bomba", id: "nCEtG83qjYU", duration: 1327 },
+                    { title: "Dennis, a komisz (1986)- Halászd a bajt/Vágyott vagyon/Időzített bomba", id: "nCEtG83qjYU", duration: 1327 },
                     { title: "Louie élete - Apát kirúgják", id: "ro3XDlmHmB8", duration: 1201 },
                     { title: "A kémkutyák titkos aktái 2. rész", id: "-IAwJ6NbRoM", duration: 1217 },
-                    { title: "Jack, a Kalóz - A kék karbunkulus átka", id: "VlVmYSXKwEU", duration: 1206 },
+                    { title: "Jack, a Kalóz (2. rész) - A kék karbunkulus átka", id: "VlVmYSXKwEU", duration: 1206 },
                     { title: "A Kullancs- A Kullancs és a Télapó", id: "w_pMG8s26mc", duration: 1217 },
                     { title: "Heathcliff- A nagy Pussini/Cicus az állatmenhelyen", id: "x_CsfGdZt2M", duration: 1275 },
                     { title: "Kölykök a 402-es tanteremből- Egyszemélyes bizottság", id: "U5IJe6KycW0", duration: 1277 },
@@ -941,13 +941,12 @@
             {
                 number: "02",
                 playlist: [
-                    { title: "Bigyó felügyelő 2", id: "UhDSgs19n_U", duration: 5105 },
-                    { title: "Én a vízilovakkal vagyok", id: "blx3gDcWxGQ", duration: 5513 },
-                    { title: "Egy amerikai Kínában", id: "uKCruWyxTzg", duration: 5182 },
-                    { title: "A keresztapus", id: "juXIzQvJSsA", duration: 5967 },
-                    { title: "Töketlenek", id: "jauV_f53JuA", duration: 5451 },
+                    { title: "A bolond és az okos", id: "YNgD_VPdLco", duration: 54 },
+                    { title: "1 Perc és Nyersz! Doboz a dróton", id: "tMuTYy35fmc", duration: 27 },
+                    { title: "Az elvarázsolt dollár", id: "O-V2p8CqS_k", duration: 5313 },
+                    { title: "Én egy kaki vagyok...", id: "Kx-g5uNFPoA", duration: 33 },
                     { title: "Linda - A szatír", id: "O8N2hG8p5-8", duration: 3240 },
-                    { title: "Ne légy barom, míg iszod a dzsúszod a gettóban", id: "KTzlt6M-2oc", duration: 5332 },
+                    { title: "Húsvéti locsolo vers", id: "REvaOKTU4J8", duration: 27 },
                     { title: "Hamis a baba", id: "I8H5kG2p1-M", duration: 5160 }
                 ]
             }
@@ -967,6 +966,7 @@
         let heartbeatInterval = null;
         let lastAttemptedVideoId = null;
         let isManualSwitch = false; // Flag a szép váltáshoz
+        let adPatienceCounter = 0; // Hirdetés-türelem számláló
 
         // Element kimentése a gyors eléréshez
         const els = {
@@ -1313,6 +1313,7 @@
                 const currentTime = ytPlayer.getCurrentTime();
 
                 if (currentData && currentData.video_id === video.id) {
+                    adPatienceCounter = 0; // Megvan az igazi videó, alaphelyzetbe állunk
                     const drift = Math.abs(currentTime - startTime);
 
                     if (drift < 3) {
@@ -1326,6 +1327,16 @@
                         timer = setTimeout(() => syncToBroadcast(false), (video.duration - startTime + 1) * 1000);
                         return;
                     }
+                } else if (!isManual) {
+                    // Ha nem manuális váltás, de a videó ID nem stimmel (pl. reklám megy)
+                    adPatienceCounter++;
+                    if (adPatienceCounter < 10) { // Kb 90-100 másodpercig hagyjuk futni a "reklámot"
+                        console.log("Ad detected, patience:", adPatienceCounter);
+                        clearTimeout(timer);
+                        timer = setTimeout(() => syncToBroadcast(false), (video.duration - startTime + 1) * 1000);
+                        return;
+                    }
+                    // Ha a türelem elfogyott, akkor továbbmegyünk és kényszerítjük a videót
                 }
             }
 
@@ -1333,6 +1344,7 @@
                 els.tvSet.classList.add('changing-channel');
                 els.staticNoise.style.opacity = '1';
                 playSwitchSound();
+                adPatienceCounter = 0; // Manuális váltásnál mindig resetelünk
 
                 const playerIframe = ytPlayer.getIframe();
                 if (playerIframe) {
@@ -1526,5 +1538,3 @@
 </body>
 
 </html>
-
-
