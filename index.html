@@ -1072,48 +1072,64 @@
             if (!isTvOn) return;
             const currentChannel = CHANNELS[currentChannelIndex];
 
-            // Deterministic Global Sync: Az eredeti teljes lista alapján számolunk
-            const totalDuration = currentChannel.playlist.reduce((sum, vid) => sum + vid.duration, 0);
+            // 1. Kiszámoljuk az "Hivatalos" időt az eredeti sorrend alapján (ez közös minden eszköznél)
+            const fullPlaylist = currentChannel.playlist;
+            const fullDuration = fullPlaylist.reduce((sum, vid) => sum + vid.duration, 0);
             const elapsed = Math.floor(Date.now() / 1000) - REFERENCE_TIME;
-            let cycleTime = elapsed % totalDuration;
+            let cycleTime = elapsed % fullDuration;
 
+            // 2. Megkeressük, mi menne most a hivatalos menetrend szerint
             let accumulated = 0;
-            for (let i = 0; i < currentChannel.playlist.length; i++) {
-                const vid = currentChannel.playlist[i];
+            let targetVideo = null;
+            let targetIndex = -1;
+
+            for (let i = 0; i < fullPlaylist.length; i++) {
+                const vid = fullPlaylist[i];
                 if (cycleTime >= accumulated && cycleTime < accumulated + vid.duration) {
-
-                    // Ha ez a videó hibás, megkeressük a következő MŰKÖDŐ videót
-                    if (brokenVideos.has(vid.id)) {
-                        let offsetInBroken = cycleTime - accumulated;
-                        console.log(`Slot ${vid.id} is broken. Finding gap-filler...`);
-
-                        let nextIndex = (i + 1) % currentChannel.playlist.length;
-                        let attempts = 0;
-                        while (attempts < currentChannel.playlist.length) {
-                            const nextVid = currentChannel.playlist[nextIndex];
-                            if (!brokenVideos.has(nextVid.id)) {
-                                // Gap-Filler logika: A kiesett időt rátoljuk a következő videóra.
-                                // Így minden eszköz ugyanahhoz a ponthoz ugrik.
-                                const fillerStartTime = offsetInBroken % nextVid.duration;
-                                channelDisplay.innerText = currentChannel.number;
-                                playChannel(nextVid, fillerStartTime);
-                                return;
-                            }
-                            nextIndex = (nextIndex + 1) % currentChannel.playlist.length;
-                            attempts++;
-                        }
-
-                        console.error("No working videos on this channel!");
-                        channelDisplay.innerText = "ERR";
-                        return;
-                    }
-
-                    channelDisplay.innerText = currentChannel.number;
-                    playChannel(vid, Math.floor(cycleTime - accumulated));
-                    return;
+                    targetVideo = vid;
+                    targetIndex = i;
+                    break;
                 }
                 accumulated += vid.duration;
             }
+
+            if (!targetVideo) return;
+
+            // 3. Ha a cél videó MŰKÖDIK, simán lejátszuk a megfelelő időponttól
+            if (!brokenVideos.has(targetVideo.id)) {
+                channelDisplay.innerText = currentChannel.number;
+                playChannel(targetVideo, Math.floor(cycleTime - accumulated));
+                return;
+            }
+
+            // 4. Ha a cél videó HIBÁS, megkeressük a következő alkalmas darabot (Trajectory Traversal)
+            console.warn(`Official video ${targetVideo.id} is broken. Seeking trajectory replacement...`);
+
+            let remainingGap = (accumulated + targetVideo.duration) - cycleTime;
+            let nextIdx = (targetIndex + 1) % fullPlaylist.length;
+            let attempts = 0;
+
+            while (attempts < fullPlaylist.length) {
+                const nextVid = fullPlaylist[nextIdx];
+
+                if (!brokenVideos.has(nextVid.id)) {
+                    if (nextVid.duration > remainingGap) {
+                        // Megtaláltuk az első videót, ami "pótolja" a kiesett időt
+                        channelDisplay.innerText = currentChannel.number;
+                        playChannel(nextVid, remainingGap);
+                        return;
+                    } else {
+                        // Ez a videó is rövidebb, mint a hátralévő hézag, tehát "elfogyasztjuk" belőle
+                        remainingGap -= nextVid.duration;
+                    }
+                }
+                // Ha ez is hibás volt, vagy elfogyott a hossza a hézagban, megyünk tovább
+                nextIdx = (nextIdx + 1) % fullPlaylist.length;
+                attempts++;
+            }
+
+            console.error("No working videos left on this channel!");
+            channelDisplay.innerText = "ERR";
         }
 
         function playChannel(video, startTime = 0) {
