@@ -838,7 +838,6 @@
 
         const REFERENCE_TIME = 1738368000; // 2026. Febr. 1. 00:00:00
         const STORAGE_KEY_BROKEN = 'retro_tv_broken_videos';
-        const STORAGE_KEY_OFFSET = 'retro_tv_clock_offset';
 
         let ytPlayer = null;
         let isPlayerReady = false;
@@ -849,21 +848,15 @@
         let timer = null;
         let lastAttemptedVideoId = null;
 
-        // Broken videók és óra-eltolás betöltése
+        // Broken videók betöltése
         const brokenVideos = new Set(JSON.parse(sessionStorage.getItem(STORAGE_KEY_BROKEN) || "[]"));
-        let clockOffset = parseInt(localStorage.getItem(STORAGE_KEY_OFFSET) || "0");
 
         function markVideoAsBroken(video) {
             if (!video || brokenVideos.has(video.id)) return;
 
             brokenVideos.add(video.id);
             sessionStorage.setItem(STORAGE_KEY_BROKEN, JSON.stringify([...brokenVideos]));
-
-            // Hozzáadjuk a videó hosszát az eltoláshoz, hogy a többi műsor ne ugorjon el
-            clockOffset += video.duration;
-            localStorage.setItem(STORAGE_KEY_OFFSET, clockOffset);
-
-            console.warn(`Video ${video.id} marked as broken. New clock offset: ${clockOffset}s`);
+            console.warn(`Video ${video.id} marked as broken.`);
         }
 
         const staticNoise = document.getElementById('static-noise');
@@ -1079,27 +1072,42 @@
             if (!isTvOn) return;
             const currentChannel = CHANNELS[currentChannelIndex];
 
-            // Csak a működő videókkal számolunk
-            const workingPlaylist = currentChannel.playlist.filter(vid => !brokenVideos.has(vid.id));
-
-            if (workingPlaylist.length === 0) {
-                console.error("No working videos left on this channel!");
-                channelDisplay.innerText = "ERR";
-                return;
-            }
-
-            // A működő videók hossza alapján számolunk, levonva a globális eltolást (offset)
-            const totalDuration = workingPlaylist.reduce((sum, vid) => sum + vid.duration, 0);
-            const realElapsed = Math.floor(Date.now() / 1000) - REFERENCE_TIME;
-            const adjustedElapsed = realElapsed - clockOffset;
-
-            // Biztosítjuk, hogy ne legyen negatív az idő (modulo kompatibilitás)
-            let cycleTime = ((adjustedElapsed % totalDuration) + totalDuration) % totalDuration;
+            // Deterministic Global Sync: Az eredeti teljes lista alapján számolunk
+            const totalDuration = currentChannel.playlist.reduce((sum, vid) => sum + vid.duration, 0);
+            const elapsed = Math.floor(Date.now() / 1000) - REFERENCE_TIME;
+            let cycleTime = elapsed % totalDuration;
 
             let accumulated = 0;
-            for (let i = 0; i < workingPlaylist.length; i++) {
-                const vid = workingPlaylist[i];
+            for (let i = 0; i < currentChannel.playlist.length; i++) {
+                const vid = currentChannel.playlist[i];
                 if (cycleTime >= accumulated && cycleTime < accumulated + vid.duration) {
+
+                    // Ha ez a videó hibás, megkeressük a következő MŰKÖDŐ videót
+                    if (brokenVideos.has(vid.id)) {
+                        let offsetInBroken = cycleTime - accumulated;
+                        console.log(`Slot ${vid.id} is broken. Finding gap-filler...`);
+
+                        let nextIndex = (i + 1) % currentChannel.playlist.length;
+                        let attempts = 0;
+                        while (attempts < currentChannel.playlist.length) {
+                            const nextVid = currentChannel.playlist[nextIndex];
+                            if (!brokenVideos.has(nextVid.id)) {
+                                // Gap-Filler logika: A kiesett időt rátoljuk a következő videóra.
+                                // Így minden eszköz ugyanahhoz a ponthoz ugrik.
+                                const fillerStartTime = offsetInBroken % nextVid.duration;
+                                channelDisplay.innerText = currentChannel.number;
+                                playChannel(nextVid, fillerStartTime);
+                                return;
+                            }
+                            nextIndex = (nextIndex + 1) % currentChannel.playlist.length;
+                            attempts++;
+                        }
+
+                        console.error("No working videos on this channel!");
+                        channelDisplay.innerText = "ERR";
+                        return;
+                    }
+
                     channelDisplay.innerText = currentChannel.number;
                     playChannel(vid, Math.floor(cycleTime - accumulated));
                     return;
