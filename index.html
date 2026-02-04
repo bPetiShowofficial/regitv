@@ -898,15 +898,17 @@
             const data = ytPlayer.getVideoData();
             const playerIframe = ytPlayer.getIframe();
 
-            // Reklám észlelése: ha az aktuális ID eltér a várt film ID-tól
-            const isAd = data && data.video_id && data.video_id !== lastAttemptedVideoId;
+            // Reklám észlelése: ID eltérés VAGY ha a YouTube API reklámot jelez
+            const isAd = (data && data.video_id && data.video_id !== lastAttemptedVideoId) ||
+                (ytPlayer.getAdState && ytPlayer.getAdState() !== -1);
 
             if (isAd) {
                 if (!tvSet.classList.contains('ad-playing')) {
                     tvSet.classList.add('ad-playing');
                     playerIframe.style.opacity = '1';
-                    playerIframe.style.animation = 'none';
-                    console.log("Ad active: Visibility and Skip button enabled.");
+                    // Leállítjuk a szinkron-időzítőt is, hogy ne próbáljon meg váltani reklám közben
+                    clearTimeout(timer);
+                    console.log("EMERGENCY Ad Detection: Player elevated and sync paused.");
                 }
             } else {
                 if (tvSet.classList.contains('ad-playing')) {
@@ -937,6 +939,7 @@
                 events: {
                     'onReady': () => { isPlayerReady = true; console.log("YT Ready"); },
                     'onStateChange': onPlayerStateChange,
+                    'onAdEvent': (e) => { checkAdState(); console.log("Ad Event:", e.data); },
                     'onError': handlePlayerError
                 }
             });
