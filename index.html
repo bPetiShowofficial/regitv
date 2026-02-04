@@ -825,14 +825,12 @@
             {
                 number: "02",
                 playlist: [
-                    { title: "Bigyó felügyelő 2", id: "UhDSgs19n_U", duration: 5105 },
-                    { title: "Kétszeres kockázat", id: "qgLQ6L1w6mQ", duration: 6022 },
-                    { title: "Holtak hajnala-Rendezői változat", id: "vEbjw5ae6i8", duration: 8376 },
+                    { title: "A bolond és az okos", id: "YNgD_VPdLco", duration: 54 },
+                    { title: "1 Perc és Nyersz! Doboz a dróton", id: "tMuTYy35fmc", duration: 27 },
                     { title: "Az elvarázsolt dollár", id: "O-V2p8CqS_k", duration: 5313 },
-                    { title: "A RÉM", id: "O4nefMBvung", duration: 6528 },
+                    { title: "Én egy kaki vagyok...", id: "Kx-g5uNFPoA", duration: 33 },
                     { title: "Linda - A szatír", id: "O8N2hG8p5-8", duration: 3240 },
-                    { title: "Aki bujt aki nem", id: "qVE07YmQsYs", duration: 5223 },
-                    { title: "Aki bújt aki nem 2", id: "BhmyNydHlcU", duration: 5927 },
+                    { title: "Húsvéti locsolo vers", id: "REvaOKTU4J8", duration: 27 },
                     { title: "Hamis a baba", id: "I8H5kG2p1-M", duration: 5160 }
                 ]
             }
@@ -848,6 +846,7 @@
         let isTvOn = false;
         let isMuted = true;
         let timer = null;
+        let heartbeatInterval = null;
         let lastAttemptedVideoId = null;
 
         // Broken videók betöltése
@@ -956,6 +955,12 @@
             volBtn.classList.add('on');
 
             syncToBroadcast();
+
+            // Heartbeat szinkron: 10 másodpercenként ellenőrizzük az elcsúszást (reklámok/pufferelés ellen)
+            clearInterval(heartbeatInterval);
+            heartbeatInterval = setInterval(() => {
+                if (isTvOn) syncToBroadcast();
+            }, 10000);
         }
 
         // Induláskor legyen Power Off (Sleep Mode) állapotban
@@ -1060,6 +1065,7 @@
             isMuted = true;
             channelDisplay.innerText = "--";
             clearTimeout(timer);
+            clearInterval(heartbeatInterval);
             if (ytPlayer && isPlayerReady) {
                 ytPlayer.stopVideo();
                 const playerIframe = ytPlayer.getIframe();
@@ -1110,14 +1116,28 @@
             }
 
             // Akadozás elleni védelem: Ha már ez megy és jó helyen tart, ne töltsük újra
-            if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) {
+            if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING || ytPlayer.getPlayerState() === YT.PlayerState.BUFFERING) {
                 const currentData = ytPlayer.getVideoData();
                 const currentTime = ytPlayer.getCurrentTime();
-                if (currentData && currentData.video_id === video.id && Math.abs(currentTime - startTime) < 4) {
-                    // Csak frissítjük az időzítőt, ha kell
-                    clearTimeout(timer);
-                    timer = setTimeout(syncToBroadcast, (video.duration - currentTime + 1) * 1000);
-                    return;
+
+                if (currentData && currentData.video_id === video.id) {
+                    const drift = Math.abs(currentTime - startTime);
+
+                    if (drift < 3) {
+                        // Minden rendben, csak az időzítőt frissítjük a végére
+                        clearTimeout(timer);
+                        timer = setTimeout(syncToBroadcast, (video.duration - currentTime + 1) * 1000);
+                        return;
+                    } else if (drift < 30) {
+                        // Csak egy kicsit csúszott el (pl. rövid reklám vagy pufferelés)
+                        // "Lágy szinkron": Csak odajumpolunk, nem töltünk újra mindent
+                        console.log(`Soft-sync active: drifting ${Math.floor(drift)}s. Seeking...`);
+                        ytPlayer.seekTo(startTime, true);
+                        clearTimeout(timer);
+                        timer = setTimeout(syncToBroadcast, (video.duration - startTime + 1) * 1000);
+                        return;
+                    }
+                    // Ha 30s-nél nagyobb az eltérés, akkor jöhet a teljes újratöltés
                 }
             }
 
@@ -1303,5 +1323,3 @@
 </body>
 
 </html>
-
-
