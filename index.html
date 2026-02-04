@@ -464,11 +464,13 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: transparent;
+            background-color: #050505;
+            /* Solid dark background to hide YT artifacts */
             opacity: 0;
             pointer-events: none;
             overflow: hidden;
             z-index: 15;
+            transition: opacity 0.3s ease;
         }
 
         .crt-off .scanlines,
@@ -501,7 +503,7 @@
             left: 0;
             width: 100%;
             height: 100px;
-            background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.4), transparent);
+            background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.03), transparent);
             z-index: 16;
             animation: sync-bar-anim 2s linear infinite;
             opacity: 0;
@@ -882,7 +884,7 @@
                     { title: "Egy amerikai Kínában", id: "uKCruWyxTzg", duration: 5182 },
                     { title: "Az elvarázsolt dollár", id: "O-V2p8CqS_k", duration: 5313 },
                     { title: "Töketlenek teljes", id: "jauV_f53JuA", duration: 5451 },
-                    { title: "Linda - A szatír", id: "O8N2hG8p5-8", duration: 3240 },
+                    { title: "Csupasz pisztoly a (z)űrben", id: "yuLMkhO7C34", duration: 5250 },
                     { title: "Ne légy barom, míg iszod a dzsúszod a gettóban", id: "KTzlt6M-2oc", duration: 5332 },
                     { title: "Hamis a baba", id: "I8H5kG2p1-M", duration: 5160 }
                 ]
@@ -963,7 +965,7 @@
             if (event.data == YT.PlayerState.PLAYING) {
                 els.tvSet.classList.remove('changing-channel');
                 els.staticNoise.style.transition = 'opacity 0.6s';
-                els.staticNoise.style.opacity = '0.05';
+                els.staticNoise.style.opacity = '0.01'; // Very subtle overlay
 
                 playerIframe.style.opacity = '1';
                 // Csak akkor játszunk animációt, ha manuális váltás vagy bekapcsolás volt
@@ -1278,25 +1280,24 @@
                 }
             }
 
+            const playerIframe = ytPlayer.getIframe();
+            if (playerIframe) {
+                playerIframe.style.transition = 'none';
+                playerIframe.style.opacity = '0';
+                playerIframe.classList.remove('vsync-jump', 'blackout');
+            }
+
+            els.staticNoise.style.transition = 'none';
+            els.staticNoise.style.opacity = '1'; // Show blackout immediately
+
             if (isManual) {
                 els.tvSet.classList.add('changing-channel');
-                els.staticNoise.style.opacity = '1';
                 playSwitchSound();
-                adPatienceCounter = 0; // Manuális váltásnál mindig resetelünk
+                adPatienceCounter = 0; // Reset patience
 
-                const playerIframe = ytPlayer.getIframe();
                 if (playerIframe) {
-                    playerIframe.classList.remove('vsync-jump', 'blackout');
-                    void playerIframe.offsetWidth; // Reflow kényszerítése gyanánt
+                    void playerIframe.offsetWidth; // Reflow
                     playerIframe.classList.add('vsync-jump', 'blackout');
-                }
-            } else {
-                // Smooth transition: csak elhalványítás és halkítás nélkül indítjuk
-                const playerIframe = ytPlayer.getIframe();
-                if (playerIframe) {
-                    playerIframe.classList.remove('vsync-jump', 'blackout');
-                    playerIframe.style.transition = 'opacity 0.2s';
-                    playerIframe.style.opacity = '0';
                 }
             }
 
