@@ -335,32 +335,39 @@
             width: 100%;
             height: 100%;
             border: none;
-            opacity: 0;
+            opacity: 1;
+            /* Alapból látható legyen, ha a TV be van kapcsolva */
             transition: opacity 0.5s, transform 0.3s ease;
             transform: scale(1.05);
             filter: contrast(1.1) brightness(1.1) saturate(1.2);
-            pointer-events: none;
+            /* pointer-events: none; */
             position: relative;
             z-index: 5;
             will-change: transform, opacity;
+        }
+
+        /* Csak kikapcsolt állapotban rejtjük el a playert */
+        .tv-set.power-off #youtube-player {
+            opacity: 0 !important;
+            pointer-events: none !important;
         }
 
         /* Reklám alatt a lejátszót legfelülre emeljük, hogy kattintható legyen a Skip gomb */
         .ad-playing #youtube-player {
             pointer-events: auto !important;
             z-index: 100 !important;
-            opacity: 1 !important;
         }
 
         /* Elhalványítjuk az effekteket reklám alatt a jobb láthatóságért */
         .ad-playing .scanlines,
         .ad-playing .phosphor-mask,
         .ad-playing .flicker {
-            opacity: 0.1 !important;
+            opacity: 0.05 !important;
         }
 
         .ad-playing .glass-overlay {
-            opacity: 0.2 !important;
+            opacity: 0.1 !important;
+            pointer-events: none !important;
         }
 
         .tv-set.zoom-active #youtube-player {
@@ -873,6 +880,7 @@
         let timer = null;
         let heartbeatInterval = null;
         let lastAttemptedVideoId = null;
+        let lastExpectedDuration = 0;
 
         // Broken videók betöltése
         const brokenVideos = new Set(JSON.parse(sessionStorage.getItem(STORAGE_KEY_BROKEN) || "[]"));
@@ -896,19 +904,22 @@
             if (!ytPlayer || !ytPlayer.getVideoData || !isTvOn) return;
             const tvSet = document.querySelector('.tv-set');
             const data = ytPlayer.getVideoData();
-            const playerIframe = ytPlayer.getIframe();
+            const playerDuration = ytPlayer.getDuration();
 
-            // Reklám észlelése: ID eltérés VAGY ha a YouTube API reklámot jelez
+            // Reklám észlelése: 
+            // 1. ID eltérés 
+            // 2. YouTube API állapot (ha elérhető)
+            // 3. IDŐTARTAM ELTÉRÉS (Mid-roll reklámok észlelése!)
             const isAd = (data && data.video_id && data.video_id !== lastAttemptedVideoId) ||
-                (ytPlayer.getAdState && ytPlayer.getAdState() !== -1);
+                (ytPlayer.getAdState && ytPlayer.getAdState() !== -1) ||
+                (Math.abs(playerDuration - lastExpectedDuration) > 10 && playerDuration > 0 && lastExpectedDuration > 0);
 
             if (isAd) {
                 if (!tvSet.classList.contains('ad-playing')) {
                     tvSet.classList.add('ad-playing');
-                    playerIframe.style.opacity = '1';
                     // Leállítjuk a szinkron-időzítőt is, hogy ne próbáljon meg váltani reklám közben
                     clearTimeout(timer);
-                    console.log("EMERGENCY Ad Detection: Player elevated and sync paused.");
+                    console.log("ULTRA Ad Detection: Player elevated and sync paused.");
                 }
             } else {
                 if (tvSet.classList.contains('ad-playing')) {
@@ -1225,6 +1236,7 @@
             setTimeout(() => {
                 if (!isTvOn) return;
                 lastAttemptedVideoId = video.id;
+                lastExpectedDuration = video.duration;
                 ytPlayer.loadVideoById({ videoId: video.id, startSeconds: startTime, suggestedQuality: 'medium' });
                 isMuted ? ytPlayer.mute() : ytPlayer.unMute();
 
