@@ -1263,22 +1263,24 @@
                 return;
             }
 
-            // Akadozás elleni védelem: Ha már ez megy és jó helyen tart, ne töltsük újra
-            if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING || ytPlayer.getPlayerState() === YT.PlayerState.BUFFERING) {
-                const currentData = ytPlayer.getVideoData();
-                const currentTime = ytPlayer.getCurrentTime();
+            // Akadozás és Reklám elleni védelem:
+            const state = ytPlayer.getPlayerState();
+            const currentData = ytPlayer.getVideoData();
+            const currentTime = ytPlayer.getCurrentTime();
 
+            // Ha bármilyen aktív állapotban van (vagy éppen készül rás), ne bántsuk ha reklám esélye van
+            const isActive = [YT.PlayerState.PLAYING, YT.PlayerState.BUFFERING, -1, 5].includes(state);
+
+            if (isActive) {
                 if (currentData && currentData.video_id === video.id) {
-                    adPatienceCounter = 0; // Megvan az igazi videó, alaphelyzetbe állunk
+                    adPatienceCounter = 0; // Megvan az igazi videó
                     const drift = Math.abs(currentTime - startTime);
 
                     if (drift < 12) {
-                        // 12 másodpercnyi elcsúszást tolerálunk (nincs ugrálás)
                         clearTimeout(timer);
                         timer = setTimeout(() => syncToBroadcast(false), (video.duration - currentTime + 1) * 1000);
                         return;
                     } else if (drift < 300) {
-                        // 5 percen belül csak odaugrunk a videón belül (nincs újratöltés)
                         console.log(`Soft-sync active: drifting ${Math.floor(drift)}s. Seeking...`);
                         ytPlayer.seekTo(startTime, true);
                         clearTimeout(timer);
@@ -1286,15 +1288,14 @@
                         return;
                     }
                 } else if (!isManual) {
-                    // Ha nem manuális váltás, de a videó ID nem stimmel (pl. reklám megy)
+                    // Ha a videó ID nem stimmel, az valószínűleg reklám
                     adPatienceCounter++;
-                    if (adPatienceCounter < 10) { // Kb 100 másodpercig (10 heartbeat) hagyjuk futni a hirdetést
-                        console.log("Ad or suggestion detected, waiting... Patience:", adPatienceCounter);
-                        // FONTOS: Nem állítunk be új timer-t, hagyjuk hogy a heartbeat (10s) hívja meg újra ezt
+                    if (adPatienceCounter < 20) { // Kb 200 másodpercig (20 heartbeat) hagyjuk futni a hirdetést
+                        console.log(`[DEBUG] Ad or transition detected (State: ${state}), waiting... Patience: ${adPatienceCounter}/20`);
                         clearTimeout(timer);
                         return;
                     }
-                    // Ha a türelem elfogyott (vagy hiba miatt nullázódott), akkor továbbmegyünk és kényszerítjük a videót
+                    console.warn("[DEBUG] Patience exhausted or major sync error. Forcing reload.");
                 }
             }
 
