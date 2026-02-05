@@ -877,12 +877,12 @@
             {
                 number: "02",
                 playlist: [
-		    { title: "Bigyó felügyelő 2", id: "UhDSgs19n_U", duration: 5105 },
+                    { title: "A kiállhatatlan", id: "MnnGA5U4kZA", duration: 5490 },
                     { title: "Egy amerikai Kínában", id: "uKCruWyxTzg", duration: 5181 },
-                    { title: "Az elvarázsolt dollár", id: "O-V2p8CqS_k", duration: 5313 },
+                    { title: "Szesz szex és steksz", id: "xYc-WzgiHtU", duration: 5519 },
                     { title: "Töketlenek teljes", id: "jauV_f53JuA", duration: 5450 },
-                    { title: "Linda - A szatír", id: "O8N2hG8p5-8", duration: 3240 },
-                    { title: "Ne légy barom, míg iszod a dzsúszod a gettóban", id: "KTzlt6M-2oc", duration: 5331 },
+                    { title: "Pókerpárbaj", id: "_H10Cn1cawI", duration: 4932 },
+                    { title: "Eladó a családom", id: "DjsBtWRepgw", duration: 5750 },
                     { title: "Hamis a baba", id: "I8H5kG2p1-M", duration: 5160 }
                 ]
             }
@@ -925,12 +925,12 @@
         // Broken videók betöltése
         const brokenVideos = new Set(JSON.parse(sessionStorage.getItem(STORAGE_KEY_BROKEN) || "[]"));
 
-        function markVideoAsBroken(video) {
+        function markVideoAsBroken(video, reason = "Unknown Error") {
             if (!video || brokenVideos.has(video.id)) return;
 
             brokenVideos.add(video.id);
             sessionStorage.setItem(STORAGE_KEY_BROKEN, JSON.stringify([...brokenVideos]));
-            console.warn(`Video ${video.id} marked as broken.`);
+            console.warn(`[DEBUG] Video Marked as Broken: "${video.title}" (ID: ${video.id}) - Reason: ${reason}`);
         }
 
 
@@ -989,13 +989,22 @@
         }
 
         function handlePlayerError(event) {
-            console.warn("Video error detected, code: " + event.data);
+            const errorCodes = {
+                2: "Invalid parameter",
+                5: "HTML5 player error",
+                100: "Video not found / Deleted",
+                101: "Embedding not allowed",
+                150: "Embedding not allowed (Region/Copyright)"
+            };
+            const reason = errorCodes[event.data] || "Unknown Code " + event.data;
+            console.warn("[DEBUG] YouTube Error detected: " + reason);
+
             const currentChannel = CHANNELS[currentChannelIndex];
             const videoId = lastAttemptedVideoId || (ytPlayer.getVideoData ? ytPlayer.getVideoData().video_id : null);
 
             const videoObj = currentChannel.playlist.find(v => v.id === videoId);
             if (videoObj) {
-                markVideoAsBroken(videoObj);
+                markVideoAsBroken(videoObj, reason);
             }
 
             adPatienceCounter = 0; // Hiba esetén nincs türelem, rögtön váltunk
@@ -1480,6 +1489,17 @@
                 console.log("TV Mode Activated: Optimized for performance");
             }
         }
+
+        // Billentyűzet események (Debug & Reset)
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'r') {
+                console.log("[DEBUG] Reseting Broken Videos list...");
+                brokenVideos.clear();
+                sessionStorage.removeItem(STORAGE_KEY_BROKEN);
+                alert("Hiba lista törölve! Most újra megpróbálja betölteni a korábban hibásnak jelölt linkeket.");
+                if (isTvOn) syncToBroadcast(true);
+            }
+        });
 
         // Futás azonnal
         detectTV();
