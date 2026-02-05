@@ -1224,32 +1224,44 @@
 
         function syncToBroadcast(isManual = false) {
             if (!isTvOn) return;
-            if (isManual) isManualSwitch = true;
             const currentChannel = CHANNELS[currentChannelIndex];
 
-            // 1. Csak a működő videókat vesszük figyelembe (Dinamikus Virtuális Csatorna)
-            const workingPlaylist = currentChannel.playlist.filter(vid => !brokenVideos.has(vid.id));
-
-            if (workingPlaylist.length === 0) {
-                console.error("No working videos left on this channel!");
-                els.channelNum.innerText = "ERR";
-                return;
-            }
-
-            // 2. Determinisztikus Matematika: Az eltel időt a működő tartalom összhosszára vetítjük
-            // Ez garantálja, hogy minden eszköz ugyanott tartson, és nincs ismétlés/loop hiba.
-            const totalWorkingDuration = workingPlaylist.reduce((sum, vid) => sum + vid.duration, 0);
+            // 1. Fix Matematika: Mindig a TELJES lista hossza az alap (így nem csúszik el az idősík)
+            const totalCycleDuration = currentChannel.playlist.reduce((sum, vid) => sum + vid.duration, 0);
             const elapsed = Math.floor(Date.now() / 1000) - REFERENCE_TIME;
-
-            // Modulo eltolás kiszámítása
-            let cycleTime = ((elapsed % totalWorkingDuration) + totalWorkingDuration) % totalWorkingDuration;
+            let cycleTime = ((elapsed % totalCycleDuration) + totalCycleDuration) % totalCycleDuration;
 
             let accumulated = 0;
-            for (let i = 0; i < workingPlaylist.length; i++) {
-                const vid = workingPlaylist[i];
+            for (let i = 0; i < currentChannel.playlist.length; i++) {
+                const vid = currentChannel.playlist[i];
                 if (cycleTime >= accumulated && cycleTime < accumulated + vid.duration) {
-                    els.channelNum.innerText = currentChannel.number;
-                    playChannel(vid, Math.floor(cycleTime - accumulated), isManual);
+                    // Megvan mit kellene játszani. De nézzük, hogy működik-e!
+                    if (brokenVideos.has(vid.id)) {
+                        console.log(`[DEBUG] Target video "${vid.title}" is broken. Searching for next working video...`);
+
+                        // Keressük meg a következő működőt a listában (vagy az elejéről)
+                        let nextIndex = (i + 1) % currentChannel.playlist.length;
+                        let found = false;
+                        for (let j = 0; j < currentChannel.playlist.length; j++) {
+                            let candidate = currentChannel.playlist[nextIndex];
+                            if (!brokenVideos.has(candidate.id)) {
+                                console.log(`[DEBUG] Found working replacement: "${candidate.title}". Starting from beginning.`);
+                                playChannel(candidate, 0, isManual);
+                                found = true;
+                                break;
+                            }
+                            nextIndex = (nextIndex + 1) % currentChannel.playlist.length;
+                        }
+
+                        if (!found) {
+                            console.error("No working videos left on this channel!");
+                            els.channelNum.innerText = "ERR";
+                        }
+                    } else {
+                        // Minden oké, játszunk a megadott időponttól
+                        els.channelNum.innerText = currentChannel.number;
+                        playChannel(vid, Math.floor(cycleTime - accumulated), isManual);
+                    }
                     return;
                 }
                 accumulated += vid.duration;
