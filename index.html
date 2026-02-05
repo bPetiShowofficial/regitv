@@ -930,18 +930,7 @@
 
             brokenVideos.add(video.id);
             sessionStorage.setItem(STORAGE_KEY_BROKEN, JSON.stringify([...brokenVideos]));
-
-            // Idősík korrekció: A kiesett videó hosszát hozzáadjuk a csatorna eltolásához,
-            // hogy a maradék műsor ne csússzon el és ne legyen loop hiba.
-            const adjs = JSON.parse(sessionStorage.getItem('retro_tv_adj') || "{}");
-            CHANNELS.forEach(ch => {
-                if (ch.playlist.some(v => v.id === video.id)) {
-                    adjs[ch.number] = (adjs[ch.number] || 0) + video.duration;
-                }
-            });
-            sessionStorage.setItem('retro_tv_adj', JSON.stringify(adjs));
-
-            console.warn(`[DEBUG] Video Marked as Broken: "${video.title}" (ID: ${video.id}) - Reason: ${reason}. Timeline adjusted.`);
+            console.warn(`[DEBUG] Video Marked as Broken: "${video.title}" (ID: ${video.id}) - Reason: ${reason}. Timeline will auto-adjust.`);
         }
 
 
@@ -1246,9 +1235,11 @@
                 return;
             }
 
-            // 2. Szinkron korrekció: A kiesett videók idejével eltoljuk a kezdőpontot
-            const adjs = JSON.parse(sessionStorage.getItem('retro_tv_adj') || "{}");
-            const channelAdj = adjs[currentChannel.number] || 0;
+            // 2. Szinkron korrekció: Dinamikusan kiszámoljuk a kiesett videók összidejét
+            // Így ha módosítod a listát a kódban, a rendszer magától helyreáll.
+            const channelAdj = currentChannel.playlist
+                .filter(v => brokenVideos.has(v.id))
+                .reduce((sum, v) => sum + v.duration, 0);
 
             const totalWorkingDuration = workingPlaylist.reduce((sum, vid) => sum + vid.duration, 0);
             const elapsed = Math.floor(Date.now() / 1000) - REFERENCE_TIME;
@@ -1507,11 +1498,10 @@
         // Billentyűzet események (Debug & Reset)
         document.addEventListener('keydown', (e) => {
             if (e.key.toLowerCase() === 'r') {
-                console.log("[DEBUG] Reseting Broken Videos list and Adjustments...");
+                console.log("[DEBUG] Reseting Broken Videos list...");
                 brokenVideos.clear();
                 sessionStorage.removeItem(STORAGE_KEY_BROKEN);
-                sessionStorage.removeItem('retro_tv_adj');
-                alert("Hiba lista és menetrend korrekció törölve! Most újra megpróbálja betölteni a korábban hibásnak jelölt linkeket.");
+                alert("Hiba lista törölve! Most újra megpróbálja betölteni a korábban hibásnak jelölt linkeket.");
                 if (isTvOn) syncToBroadcast(true);
             }
         });
