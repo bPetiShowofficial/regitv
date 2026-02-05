@@ -1048,7 +1048,7 @@
             isMuted = false;
             els.volBtn.classList.add('on');
 
-            syncToBroadcast();
+            syncToBroadcast(true);
 
             // Heartbeat szinkron: 10 másodpercenként ellenőrizzük az elcsúszást (reklámok/pufferelés ellen)
             clearInterval(heartbeatInterval);
