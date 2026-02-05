@@ -877,12 +877,12 @@
             {
                 number: "02",
                 playlist: [
-                    { title: "Bigyó felügyelő 2", id: "UhDSgs19n_U", duration: 5105 },
-                    { title: "Egy amerikai Kínában", id: "uKCruWyxTzg", duration: 5182 },
+		    { title: "Bigyó felügyelő 2", id: "UhDSgs19n_U", duration: 5105 },
+                    { title: "Egy amerikai Kínában", id: "uKCruWyxTzg", duration: 5181 },
                     { title: "Az elvarázsolt dollár", id: "O-V2p8CqS_k", duration: 5313 },
-                    { title: "Töketlenek teljes", id: "jauV_f53JuA", duration: 5451 },
+                    { title: "Töketlenek teljes", id: "jauV_f53JuA", duration: 5450 },
                     { title: "Linda - A szatír", id: "O8N2hG8p5-8", duration: 3240 },
-                    { title: "Ne légy barom, míg iszod a dzsúszod a gettóban", id: "KTzlt6M-2oc", duration: 5332 },
+                    { title: "Ne légy barom, míg iszod a dzsúszod a gettóban", id: "KTzlt6M-2oc", duration: 5331 },
                     { title: "Hamis a baba", id: "I8H5kG2p1-M", duration: 5160 }
                 ]
             }
@@ -903,6 +903,8 @@
         let lastAttemptedVideoId = null;
         let isManualSwitch = false; // Flag a szép váltáshoz
         let adPatienceCounter = 0; // Hirdetés-türelem számláló
+        let currentLoadingVideo = null;
+        let currentLoadingStartTime = 0;
 
         // Element kimentése a gyors eléréshez
         const els = {
@@ -965,6 +967,13 @@
                 els.staticNoise.style.opacity = '0.01'; // Very subtle overlay
 
                 playerIframe.style.opacity = '1';
+
+                // OSD megjelenítése csak ha ténylegesen elindult a videó
+                if (currentLoadingVideo) {
+                    showOSD(currentLoadingVideo, currentLoadingStartTime);
+                    console.log(`Playing: ${currentLoadingVideo.title} from ${currentLoadingStartTime}s`);
+                    currentLoadingVideo = null; // Csak egyszer mutatjuk
+                }
                 // Csak akkor játszunk animációt, ha manuális váltás vagy bekapcsolás volt
                 if (isManualSwitch) {
                     playerIframe.style.animation = 'turnOn 0.4s ease-out forwards';
@@ -1239,6 +1248,7 @@
         }
 
         function playChannel(video, startTime = 0, isManual = false) {
+            els.osd.classList.remove('show'); // Hide OSD immediately on switch
             if (!isPlayerReady) {
                 setTimeout(() => playChannel(video, startTime, isManual), 300);
                 return;
@@ -1306,11 +1316,11 @@
             setTimeout(() => {
                 if (!isTvOn) return;
                 lastAttemptedVideoId = video.id;
+                currentLoadingVideo = video;
+                currentLoadingStartTime = startTime;
+
                 ytPlayer.loadVideoById({ videoId: video.id, startSeconds: startTime, suggestedQuality: 'medium' });
                 isMuted ? ytPlayer.mute() : ytPlayer.unMute();
-
-                showOSD(video, startTime);
-                console.log(`Playing: ${video.title} from ${startTime}s`);
 
                 // Időzítés a videó vége után 1 másodperccel
                 timer = setTimeout(() => syncToBroadcast(false), (video.duration - startTime + 1) * 1000);
