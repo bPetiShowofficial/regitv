@@ -1272,8 +1272,9 @@
             const currentData = ytPlayer.getVideoData();
             const currentTime = ytPlayer.getCurrentTime();
 
-            // Ha bármilyen aktív állapotban van (vagy éppen készül rás), ne bántsuk ha reklám esélye van
-            const isActive = [YT.PlayerState.PLAYING, YT.PlayerState.BUFFERING, -1, 5].includes(state);
+            // Ha bármilyen aktív állapotban van (vagy éppen készül rá, vagy átmeneti állapot), ne bántsuk ha reklám esélye van
+            // KIBŐVÍTVE: 2 (Paused), 0 (Ended) is ide tartozik a reklám-átvezetők miatt.
+            const isActive = [YT.PlayerState.PLAYING, YT.PlayerState.BUFFERING, -1, 5, 2, 0].includes(state) || adPatienceCounter > 0;
 
             if (isActive) {
                 if (currentData && currentData.video_id === video.id) {
